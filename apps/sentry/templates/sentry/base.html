@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Sentry Management{% endblock %}
+
+{% block extra_css %}
+<style>
+.sentry-header {
+    background: #362D59;
+    color: white;
+    padding: 1rem;
+    margin-bottom: 2rem;
+}
+
+.sentry-nav {
+    background: #f8f9fa;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
+}
+
+.sentry-nav a {
+    margin-right: 1rem;
+    text-decoration: none;
+    color: #007bff;
+}
+
+.sentry-nav a:hover {
+    text-decoration: underline;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #362D59;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.issue-level-error { color: #dc3545; }
+.issue-level-warning { color: #ffc107; }
+.issue-level-info { color: #17a2b8; }
+.issue-level-debug { color: #6c757d; }
+
+.status-unresolved { color: #dc3545; font-weight: bold; }
+.status-resolved { color: #28a745; }
+.status-ignored { color: #6c757d; }
+
+.sync-status-success { color: #28a745; }
+.sync-status-failed { color: #dc3545; }
+.sync-status-started { color: #17a2b8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sentry-header">
+    <h1>🔍 Sentry Management System</h1>
+    <p>Monitor and manage your Sentry projects locally</p>
+</div>
+
+<nav class="sentry-nav">
+    <a href="{% url 'sentry:dashboard' %}">Dashboard</a>
+    <a href="{% url 'sentry:organizations' %}">Organizations</a>
+    <a href="/admin/sentry/">Admin Interface</a>
+</nav>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+{% block sentry_content %}{% endblock %}
+{% endblock %}

@@ -1,0 +1,192 @@
+{% extends "sentry/base.html" %}
+
+{% block sentry_content %}
+<div class="row">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-number">{{ total_orgs }}</div>
+            <div class="stat-label">Organizations</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-number">{{ total_projects }}</div>
+            <div class="stat-label">Projects</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-number">{{ total_issues }}</div>
+            <div class="stat-label">Total Issues</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-number">{{ unresolved_issues }}</div>
+            <div class="stat-label">Unresolved Issues</div>
+        </div>
+    </div>
+</div>
+
+{% if orgs_needing_sync %}
+<div class="alert alert-warning">
+    <h5>⏰ Organizations Needing Sync</h5>
+    <ul class="mb-0">
+    {% for org in orgs_needing_sync %}
+        <li>
+            <a href="{% url 'sentry:organization_detail' org.id %}">{{ org.name }}</a>
+            {% if not org.last_sync %}(Never synced){% endif %}
+        </li>
+    {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Recent Sync Logs</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_syncs %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Organization</th>
+                                    <th>Status</th>
+                                    <th>Duration</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sync in recent_syncs %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'sentry:organization_detail' sync.organization.id %}">
+                                            {{ sync.organization.name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="sync-status-{{ sync.status }}">
+                                            {{ sync.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if sync.duration_seconds %}
+                                            {{ sync.duration_seconds|floatformat:1 }}s
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ sync.started_at|timesince }} ago</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No sync logs yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Recent Issues</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_issues %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Issue</th>
+                                    <th>Project</th>
+                                    <th>Status</th>
+                                    <th>Last Seen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for issue in recent_issues %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'sentry:issue_detail' issue.id %}" class="issue-level-{{ issue.level }}">
+                                            {{ issue.title|truncatechars:40 }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'sentry:project_detail' issue.project.id %}">
+                                            {{ issue.project.name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="status-{{ issue.status }}">
+                                            {{ issue.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ issue.last_seen|timesince }} ago</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No issues yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <a href="/admin/sentry/sentryorganization/add/" class="btn btn-primary">
+                    Add Sentry Organization
+                </a>
+                <a href="/admin/sentry/" class="btn btn-secondary">
+                    Manage in Admin
+                </a>
+                <button class="btn btn-info" onclick="testConnection()">
+                    Test API Connection
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function testConnection() {
+    const token = prompt('Enter your Sentry API token:');
+    if (!token) return;
+    
+    fetch('{% url "sentry:test_connection" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: `api_token=${encodeURIComponent(token)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ ' + data.message);
+        } else {
+            alert('❌ ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('❌ Connection test failed: ' + error);
+    });
+}
+</script>
+{% endblock %}
