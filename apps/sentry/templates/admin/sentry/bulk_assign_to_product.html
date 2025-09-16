@@ -6,44 +6,56 @@
 {% block extrahead %}
 {{ block.super }}
 <style>
+/* Universal styles with CSS custom properties */
 .bulk-assign-container {
     max-width: 1000px;
     margin: 0 auto;
 }
 
 .info-section {
-    background: #e3f2fd;
+    background: var(--primary-bg, #e3f2fd);
+    color: var(--body-fg, #333);
     padding: 1rem;
     border-radius: 6px;
     margin-bottom: 1.5rem;
-    border-left: 4px solid #2196f3;
+    border-left: 4px solid var(--primary, #2196f3);
+    border: 1px solid var(--border-color, #ddd);
 }
 
 .projects-section {
-    background: #f8f9fa;
+    background: var(--body-quiet-color, #f8f9fa);
+    color: var(--body-fg, #333);
     padding: 1rem;
     border-radius: 6px;
     margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color, #ddd);
 }
 
 .projects-list {
     max-height: 300px;
     overflow-y: auto;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color, #ddd);
     border-radius: 4px;
-    background: white;
+    background: var(--body-bg, #fff);
 }
 
 .project-item {
     padding: 0.75rem;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-color, #eee);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background: var(--body-bg, #fff);
+    color: var(--body-fg, #333);
+    transition: background-color 0.2s ease;
 }
 
 .project-item:last-child {
     border-bottom: none;
+}
+
+.project-item:hover {
+    background: var(--body-quiet-color, #f8f9fa);
 }
 
 .project-info {
@@ -52,24 +64,25 @@
 
 .project-name {
     font-weight: 500;
-    color: #333;
+    color: var(--body-fg, #333);
 }
 
 .project-details {
     font-size: 0.8rem;
-    color: #666;
+    color: var(--body-quiet-color-fg, #666);
 }
 
 .project-current {
     font-size: 0.8rem;
-    color: #dc3545;
+    color: var(--error-fg, #dc3545);
     font-style: italic;
 }
 
 .product-selection {
-    background: white;
+    background: var(--body-bg, #fff);
+    color: var(--body-fg, #333);
     padding: 1.5rem;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color, #ddd);
     border-radius: 6px;
     margin-bottom: 1.5rem;
 }
@@ -77,31 +90,40 @@
 .product-option {
     margin-bottom: 0.75rem;
     padding: 0.75rem;
-    border: 1px solid #e9ecef;
+    border: 1px solid var(--border-color, #e9ecef);
     border-radius: 4px;
-    transition: background-color 0.2s;
+    background: var(--body-bg, #fff);
+    color: var(--body-fg, #333);
+    transition: all 0.2s ease;
+    cursor: pointer;
 }
 
 .product-option:hover {
-    background: #f8f9fa;
+    background: var(--body-quiet-color, #f8f9fa);
 }
 
 .product-option.selected {
-    background: #e8f5e8;
-    border-color: #28a745;
+    background: var(--success-bg, #e8f5e8);
+    border-color: var(--success, #28a745);
+}
+
+.product-option input[type="radio"] {
+    accent-color: var(--link-fg, #007cba);
 }
 
 .product-hierarchy {
-    color: #666;
+    color: var(--body-quiet-color-fg, #666);
     font-size: 0.9rem;
     margin-top: 0.25rem;
 }
 
 .form-actions {
-    background: #f8f9fa;
+    background: var(--body-quiet-color, #f8f9fa);
+    color: var(--body-fg, #333);
     padding: 1.5rem;
     border-radius: 6px;
     text-align: center;
+    border: 1px solid var(--border-color, #ddd);
 }
 
 .stats-grid {
@@ -114,21 +136,188 @@
 .stat-item {
     text-align: center;
     padding: 1rem;
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--body-bg, #fff);
+    color: var(--body-fg, #333);
+    border: 1px solid var(--border-color, #ddd);
     border-radius: 4px;
 }
 
 .stat-number {
     font-size: 1.2rem;
     font-weight: bold;
-    color: #2196f3;
+    color: var(--primary, #2196f3);
 }
 
 .stat-label {
     font-size: 0.8rem;
-    color: #666;
+    color: var(--body-quiet-color-fg, #666);
     margin-top: 0.25rem;
+}
+
+/* Dark mode specific overrides */
+@media (prefers-color-scheme: dark) {
+    .info-section {
+        background: #1a2332;
+        color: #e8e8e8;
+        border-left-color: #79aec8;
+        border-color: #404040;
+    }
+    
+    .projects-section {
+        background: #2b2b2b;
+        color: #e8e8e8;
+        border-color: #404040;
+    }
+    
+    .projects-list {
+        background: #262626;
+        border-color: #404040;
+    }
+    
+    .project-item {
+        background: #262626;
+        color: #e8e8e8;
+        border-bottom-color: #404040;
+    }
+    
+    .project-item:hover {
+        background: #2b2b2b;
+    }
+    
+    .project-name {
+        color: #e8e8e8;
+    }
+    
+    .project-details {
+        color: #b0b0b0;
+    }
+    
+    .project-current {
+        color: #ff6b6b;
+    }
+    
+    .product-selection {
+        background: #262626;
+        color: #e8e8e8;
+        border-color: #404040;
+    }
+    
+    .product-option {
+        background: #262626;
+        color: #e8e8e8;
+        border-color: #404040;
+    }
+    
+    .product-option:hover {
+        background: #2b2b2b;
+    }
+    
+    .product-option.selected {
+        background: #1f3a1f;
+        border-color: #4caf50;
+    }
+    
+    .product-hierarchy {
+        color: #b0b0b0;
+    }
+    
+    .form-actions {
+        background: #2b2b2b;
+        color: #e8e8e8;
+        border-color: #404040;
+    }
+    
+    .stat-item {
+        background: #262626;
+        color: #e8e8e8;
+        border-color: #404040;
+    }
+    
+    .stat-number {
+        color: #79aec8;
+    }
+    
+    .stat-label {
+        color: #b0b0b0;
+    }
+}
+
+/* Force dark mode styles when body has dark class */
+body.dark .info-section,
+[data-theme="dark"] .info-section {
+    background: #1a2332 !important;
+    color: #e8e8e8 !important;
+    border-left-color: #79aec8 !important;
+    border-color: #404040 !important;
+}
+
+body.dark .projects-section,
+[data-theme="dark"] .projects-section {
+    background: #2b2b2b !important;
+    color: #e8e8e8 !important;
+    border-color: #404040 !important;
+}
+
+body.dark .projects-list,
+[data-theme="dark"] .projects-list {
+    background: #262626 !important;
+    border-color: #404040 !important;
+}
+
+body.dark .project-item,
+[data-theme="dark"] .project-item {
+    background: #262626 !important;
+    color: #e8e8e8 !important;
+    border-bottom-color: #404040 !important;
+}
+
+body.dark .project-item:hover,
+[data-theme="dark"] .project-item:hover {
+    background: #2b2b2b !important;
+}
+
+body.dark .product-selection,
+[data-theme="dark"] .product-selection {
+    background: #262626 !important;
+    color: #e8e8e8 !important;
+    border-color: #404040 !important;
+}
+
+body.dark .product-option,
+[data-theme="dark"] .product-option {
+    background: #262626 !important;
+    color: #e8e8e8 !important;
+    border-color: #404040 !important;
+}
+
+body.dark .product-option:hover,
+[data-theme="dark"] .product-option:hover {
+    background: #2b2b2b !important;
+}
+
+body.dark .product-option.selected,
+[data-theme="dark"] .product-option.selected {
+    background: #1f3a1f !important;
+    border-color: #4caf50 !important;
+}
+
+body.dark .form-actions,
+[data-theme="dark"] .form-actions {
+    background: #2b2b2b !important;
+    color: #e8e8e8 !important;
+    border-color: #404040 !important;
+}
+
+body.dark .stat-item,
+[data-theme="dark"] .stat-item {
+    background: #262626 !important;
+    color: #e8e8e8 !important;
+    border-color: #404040 !important;
+}
+
+body.dark .stat-number,
+[data-theme="dark"] .stat-number {
+    color: #79aec8 !important;
 }
 </style>
 {% endblock %}

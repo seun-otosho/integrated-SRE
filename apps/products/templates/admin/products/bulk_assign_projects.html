@@ -6,31 +6,34 @@
 {% block extrahead %}
 {{ block.super }}
 <style>
+/* Light mode styles */
 .bulk-assign-container {
     max-width: 1200px;
     margin: 0 auto;
 }
 
 .product-info {
-    background: #f8f9fa;
+    background: var(--body-quiet-color, #f8f9fa);
+    color: var(--body-fg, #333);
     padding: 1rem;
     border-radius: 6px;
     margin-bottom: 1.5rem;
-    border-left: 4px solid #007cba;
+    border-left: 4px solid var(--link-fg, #007cba);
 }
 
 .organization-section {
     margin-bottom: 2rem;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color, #ddd);
     border-radius: 6px;
     overflow: hidden;
 }
 
 .organization-header {
-    background: #e9ecef;
+    background: var(--darkened-bg, #e9ecef);
+    color: var(--body-fg, #333);
     padding: 0.75rem 1rem;
     font-weight: bold;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--border-color, #ddd);
 }
 
 .projects-grid {
@@ -38,35 +41,39 @@
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 0.5rem;
     padding: 1rem;
+    background: var(--body-bg, #fff);
 }
 
 .project-item {
     display: flex;
     align-items: center;
     padding: 0.5rem;
-    border: 1px solid #e3e3e3;
+    border: 1px solid var(--border-color, #e3e3e3);
     border-radius: 4px;
-    background: white;
+    background: var(--body-bg, #fff);
+    color: var(--body-fg, #333);
+    transition: background-color 0.2s ease;
 }
 
 .project-item:hover {
-    background: #f8f9fa;
+    background: var(--body-quiet-color, #f8f9fa);
 }
 
 .project-item.assigned {
-    background: #fff3cd;
-    border-color: #ffeaa7;
+    background: var(--warning-bg, #fff3cd);
+    border-color: var(--warning-border, #ffeaa7);
 }
 
 .project-item.assigned::after {
     content: "Currently assigned";
-    color: #856404;
+    color: var(--warning-fg, #856404);
     font-size: 0.8rem;
     margin-left: auto;
 }
 
 .project-checkbox {
     margin-right: 0.5rem;
+    accent-color: var(--link-fg, #007cba);
 }
 
 .project-info {
@@ -75,30 +82,170 @@
 
 .project-name {
     font-weight: 500;
-    color: #333;
+    color: var(--body-fg, #333);
 }
 
 .project-platform {
     font-size: 0.8rem;
-    color: #666;
+    color: var(--body-quiet-color-fg, #666);
 }
 
 .project-current-product {
     font-size: 0.8rem;
-    color: #dc3545;
+    color: var(--error-fg, #dc3545);
     font-style: italic;
 }
 
 .bulk-actions {
-    background: #f8f9fa;
+    background: var(--body-quiet-color, #f8f9fa);
+    color: var(--body-fg, #333);
     padding: 1rem;
     border-radius: 6px;
     margin-bottom: 1rem;
+    border: 1px solid var(--border-color, #ddd);
 }
 
 .btn-bulk {
     margin-right: 0.5rem;
     margin-bottom: 0.5rem;
+    background: var(--button-bg, #417690);
+    color: var(--button-fg, #fff);
+    border: 1px solid var(--button-bg, #417690);
+    padding: 0.375rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-bulk:hover {
+    background: var(--button-hover-bg, #205067);
+    border-color: var(--button-hover-bg, #205067);
+}
+
+/* Dark mode specific overrides */
+@media (prefers-color-scheme: dark) {
+    .product-info {
+        background: #2b2b2b;
+        color: #e8e8e8;
+        border-left-color: #79aec8;
+    }
+    
+    .organization-header {
+        background: #1e1e1e;
+        color: #e8e8e8;
+        border-bottom-color: #404040;
+    }
+    
+    .organization-section {
+        border-color: #404040;
+    }
+    
+    .projects-grid {
+        background: #262626;
+    }
+    
+    .project-item {
+        background: #262626;
+        color: #e8e8e8;
+        border-color: #404040;
+    }
+    
+    .project-item:hover {
+        background: #2b2b2b;
+    }
+    
+    .project-item.assigned {
+        background: #3d3d1f;
+        border-color: #5a5a2a;
+    }
+    
+    .project-item.assigned::after {
+        color: #d4a843;
+    }
+    
+    .project-name {
+        color: #e8e8e8;
+    }
+    
+    .project-platform {
+        color: #b0b0b0;
+    }
+    
+    .project-current-product {
+        color: #ff6b6b;
+    }
+    
+    .bulk-actions {
+        background: #2b2b2b;
+        color: #e8e8e8;
+        border-color: #404040;
+    }
+    
+    .btn-bulk {
+        background: #417690;
+        color: #fff;
+        border-color: #417690;
+    }
+    
+    .btn-bulk:hover {
+        background: #5a9bb8;
+        border-color: #5a9bb8;
+    }
+}
+
+/* Force dark mode styles when body has dark class */
+body.dark .product-info,
+[data-theme="dark"] .product-info {
+    background: #2b2b2b !important;
+    color: #e8e8e8 !important;
+    border-left-color: #79aec8 !important;
+}
+
+body.dark .organization-header,
+[data-theme="dark"] .organization-header {
+    background: #1e1e1e !important;
+    color: #e8e8e8 !important;
+    border-bottom-color: #404040 !important;
+}
+
+body.dark .organization-section,
+[data-theme="dark"] .organization-section {
+    border-color: #404040 !important;
+}
+
+body.dark .projects-grid,
+[data-theme="dark"] .projects-grid {
+    background: #262626 !important;
+}
+
+body.dark .project-item,
+[data-theme="dark"] .project-item {
+    background: #262626 !important;
+    color: #e8e8e8 !important;
+    border-color: #404040 !important;
+}
+
+body.dark .project-item:hover,
+[data-theme="dark"] .project-item:hover {
+    background: #2b2b2b !important;
+}
+
+body.dark .project-item.assigned,
+[data-theme="dark"] .project-item.assigned {
+    background: #3d3d1f !important;
+    border-color: #5a5a2a !important;
+}
+
+body.dark .project-item.assigned::after,
+[data-theme="dark"] .project-item.assigned::after {
+    color: #d4a843 !important;
+}
+
+body.dark .bulk-actions,
+[data-theme="dark"] .bulk-actions {
+    background: #2b2b2b !important;
+    color: #e8e8e8 !important;
+    border-color: #404040 !important;
 }
 </style>
 {% endblock %}

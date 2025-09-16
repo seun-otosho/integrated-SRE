@@ -6,16 +6,19 @@
 {% block extrahead %}
 {{ block.super }}
 <style>
+/* Universal styles with CSS custom properties */
 .bulk-assign-container {
     max-width: 1000px;
     margin: 0 auto;
 }
 
 .projects-section {
-    background: #f8f9fa;
+    background: var(--body-quiet-color, #f8f9fa);
+    color: var(--body-fg, #333);
     padding: 1rem;
     border-radius: 6px;
     margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color, #ddd);
 }
 
 .projects-grid {
@@ -26,32 +29,39 @@
 }
 
 .project-item {
-    background: white;
+    background: var(--body-bg, #fff);
+    color: var(--body-fg, #333);
     padding: 0.75rem;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color, #ddd);
     border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.project-item:hover {
+    background: var(--body-quiet-color, #f8f9fa);
 }
 
 .project-name {
     font-weight: 500;
-    color: #333;
+    color: var(--body-fg, #333);
 }
 
 .project-org {
     font-size: 0.8rem;
-    color: #666;
+    color: var(--body-quiet-color-fg, #666);
 }
 
 .project-current {
     font-size: 0.8rem;
-    color: #dc3545;
+    color: var(--error-fg, #dc3545);
     font-style: italic;
 }
 
 .product-selection {
-    background: white;
+    background: var(--body-bg, #fff);
+    color: var(--body-fg, #333);
     padding: 1.5rem;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color, #ddd);
     border-radius: 6px;
     margin-bottom: 1.5rem;
 }
@@ -59,24 +69,138 @@
 .product-option {
     margin-bottom: 0.5rem;
     padding: 0.5rem;
-    border: 1px solid #e9ecef;
+    border: 1px solid var(--border-color, #e9ecef);
     border-radius: 4px;
+    background: var(--body-bg, #fff);
+    color: var(--body-fg, #333);
+    transition: all 0.2s ease;
+    cursor: pointer;
 }
 
 .product-option:hover {
-    background: #f8f9fa;
+    background: var(--body-quiet-color, #f8f9fa);
+}
+
+.product-option input[type="radio"] {
+    accent-color: var(--link-fg, #007cba);
 }
 
 .product-hierarchy {
-    color: #666;
+    color: var(--body-quiet-color-fg, #666);
     font-size: 0.9rem;
+    margin-top: 0.25rem;
 }
 
 .form-actions {
-    background: #f8f9fa;
+    background: var(--body-quiet-color, #f8f9fa);
+    color: var(--body-fg, #333);
     padding: 1rem;
     border-radius: 6px;
     text-align: center;
+    border: 1px solid var(--border-color, #ddd);
+}
+
+/* Dark mode specific overrides */
+@media (prefers-color-scheme: dark) {
+    .projects-section {
+        background: #2b2b2b;
+        color: #e8e8e8;
+        border-color: #404040;
+    }
+    
+    .project-item {
+        background: #262626;
+        color: #e8e8e8;
+        border-color: #404040;
+    }
+    
+    .project-item:hover {
+        background: #2b2b2b;
+    }
+    
+    .project-name {
+        color: #e8e8e8;
+    }
+    
+    .project-org {
+        color: #b0b0b0;
+    }
+    
+    .project-current {
+        color: #ff6b6b;
+    }
+    
+    .product-selection {
+        background: #262626;
+        color: #e8e8e8;
+        border-color: #404040;
+    }
+    
+    .product-option {
+        background: #262626;
+        color: #e8e8e8;
+        border-color: #404040;
+    }
+    
+    .product-option:hover {
+        background: #2b2b2b;
+    }
+    
+    .product-hierarchy {
+        color: #b0b0b0;
+    }
+    
+    .form-actions {
+        background: #2b2b2b;
+        color: #e8e8e8;
+        border-color: #404040;
+    }
+}
+
+/* Force dark mode styles when body has dark class */
+body.dark .projects-section,
+[data-theme="dark"] .projects-section {
+    background: #2b2b2b !important;
+    color: #e8e8e8 !important;
+    border-color: #404040 !important;
+}
+
+body.dark .project-item,
+[data-theme="dark"] .project-item {
+    background: #262626 !important;
+    color: #e8e8e8 !important;
+    border-color: #404040 !important;
+}
+
+body.dark .project-item:hover,
+[data-theme="dark"] .project-item:hover {
+    background: #2b2b2b !important;
+}
+
+body.dark .product-selection,
+[data-theme="dark"] .product-selection {
+    background: #262626 !important;
+    color: #e8e8e8 !important;
+    border-color: #404040 !important;
+}
+
+body.dark .product-option,
+[data-theme="dark"] .product-option {
+    background: #262626 !important;
+    color: #e8e8e8 !important;
+    border-color: #404040 !important;
+}
+
+body.dark .product-option:hover,
+[data-theme="dark"] .product-option:hover {
+    background: #2b2b2b !important;
+}
+
+body.dark .form-actions,
+[data-theme="dark"] .form-actions {
+    background: #2b2b2b !important;
+    color: #e8e8e8 !important;
+    border-color: #404040 !important;
 }
 </style>
 {% endblock %}
