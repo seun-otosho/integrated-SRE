@@ -43,6 +43,9 @@ class SentryProject(models.Model):
     name = models.CharField(max_length=200)
     platform = models.CharField(max_length=50, blank=True, null=True)
     status = models.CharField(max_length=50, default='active')
+
+    # Product details
+    product = models.ForeignKey("products.Product", models.DO_NOTHING, null=True, blank=True)
     
     # Project details
     date_created = models.DateTimeField()
