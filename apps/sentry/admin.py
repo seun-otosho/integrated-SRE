@@ -87,14 +87,18 @@ class SentryOrganizationAdmin(admin.ModelAdmin):
 
 @admin.register(SentryProject)
 class SentryProjectAdmin(admin.ModelAdmin):
-    list_display = ['name', 'organization', 'platform', 'status', 'total_issues', 'unresolved_issues', 'last_issue']
-    list_filter = ['platform', 'status', 'organization', 'created_at']
-    search_fields = ['name', 'slug', 'organization__name']
+    list_display = ['name', 'organization', 'product_display', 'platform', 'status', 'total_issues', 'unresolved_issues', 'last_issue']
+    list_filter = ['platform', 'status', 'organization', 'product', 'created_at']
+    search_fields = ['name', 'slug', 'organization__name', 'product__name']
     readonly_fields = ['sentry_id', 'date_created', 'first_event', 'created_at', 'updated_at']
     
     fieldsets = (
         ('Project Info', {
             'fields': ('organization', 'name', 'slug', 'sentry_id', 'platform', 'status')
+        }),
+        ('Product Mapping', {
+            'fields': ('product',),
+            'description': 'Link this Sentry project to a business product for better organization'
         }),
         ('Details', {
             'fields': ('date_created', 'first_event', 'has_access', 'is_public', 'is_bookmarked')
@@ -107,6 +111,13 @@ class SentryProjectAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    def product_display(self, obj):
+        if obj.product:
+            url = reverse('admin:products_product_change', args=[obj.product.pk])
+            return format_html('<a href="{}">{}</a>', url, obj.product.hierarchy_path)
+        return format_html('<span style="color: #999;">No product assigned</span>')
+    product_display.short_description = 'Product'
     
     def last_issue(self, obj):
         last_issue = obj.issues.first()

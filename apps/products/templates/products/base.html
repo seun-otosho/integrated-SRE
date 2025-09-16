@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Product Management{% endblock %}
+
+{% block extra_css %}
+<style>
+.product-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border-radius: 8px;
+}
+
+.product-nav {
+    background: #f8f9fa;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
+    border-left: 4px solid #667eea;
+}
+
+.product-nav a {
+    margin-right: 1rem;
+    text-decoration: none;
+    color: #667eea;
+    font-weight: 500;
+}
+
+.product-nav a:hover {
+    text-decoration: underline;
+}
+
+.product-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+    border-left: 4px solid #667eea;
+}
+
+.product-hierarchy {
+    border-left: 2px solid #dee2e6;
+    padding-left: 1rem;
+    margin-left: 1rem;
+}
+
+.product-level-0 { border-left-color: #667eea; }
+.product-level-1 { border-left-color: #28a745; }
+.product-level-2 { border-left-color: #ffc107; }
+.product-level-3 { border-left-color: #dc3545; }
+
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.stat-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #667eea;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+}
+
+.priority-critical { color: #dc3545; font-weight: bold; }
+.priority-high { color: #fd7e14; font-weight: bold; }
+.priority-medium { color: #ffc107; }
+.priority-low { color: #6c757d; }
+
+.issue-level-error { color: #dc3545; }
+.issue-level-warning { color: #ffc107; }
+.issue-level-info { color: #17a2b8; }
+.issue-level-debug { color: #6c757d; }
+
+.status-unresolved { color: #dc3545; font-weight: bold; }
+.status-resolved { color: #28a745; }
+.status-ignored { color: #6c757d; }
+
+.product-breadcrumb {
+    background: #e9ecef;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="product-header">
+    <h1>📦 Product Management</h1>
+    <p>Monitor your Sentry projects organized by business products</p>
+</div>
+
+<nav class="product-nav">
+    <a href="{% url 'products:overview' %}">📊 Overview</a>
+    <a href="{% url 'products:hierarchy' %}">🌳 Hierarchy</a>
+    <a href="/admin/products/">⚙️ Manage Products</a>
+    <a href="{% url 'sentry:dashboard' %}">🔍 Sentry Dashboard</a>
+</nav>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+{% block product_content %}{% endblock %}
+{% endblock %}
