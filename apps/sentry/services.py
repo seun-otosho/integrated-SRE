@@ -45,17 +45,21 @@ class SentrySyncService:
                 events_count = 0
                 
                 for project in self.organization.projects.all():
+                    print(f"Syncing project: {project.name} ({project.slug})")
                     project_issues, project_events = self._sync_project_data(project)
                     issues_count += project_issues
                     events_count += project_events
+                    print(f"  Synced {project_issues} issues, {project_events} events")
                 
                 # Update sync log
+                print(f"Synced {projects_count} projects, {issues_count} issues, {events_count} events")
                 self.sync_log.projects_synced = projects_count
                 self.sync_log.issues_synced = issues_count
                 self.sync_log.events_synced = events_count
                 self.sync_log.status = SentrySyncLog.Status.SUCCESS
                 
                 # Update organization last sync
+                print("Updating last sync time")
                 self.organization.last_sync = django_timezone.now()
                 self.organization.save()
                 
@@ -130,6 +134,8 @@ class SentrySyncService:
             project.slug,
             limit=500  # Adjust as needed
         )
+
+        print(success, len(issues_data))
         
         if success:
             for issue_data in issues_data:
@@ -158,6 +164,8 @@ class SentrySyncService:
                         issue_events = self._sync_issue_events(issue, limit=10)
                         events_count += issue_events
                     
+                    
+
                 except Exception as e:
                     logger.error(f"Failed to sync issue {issue_data.get('id')}: {str(e)}")
         
