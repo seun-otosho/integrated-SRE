@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "apps.users",
     "apps.sentry",
     "apps.products",
+    "apps.jira",
 ]
 
 AUTH_USER_MODEL =   "users.User"
