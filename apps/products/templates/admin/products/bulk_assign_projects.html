@@ -1,0 +1,255 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.bulk-assign-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.product-info {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid #007cba;
+}
+
+.organization-section {
+    margin-bottom: 2rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.organization-header {
+    background: #e9ecef;
+    padding: 0.75rem 1rem;
+    font-weight: bold;
+    border-bottom: 1px solid #ddd;
+}
+
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 0.5rem;
+    padding: 1rem;
+}
+
+.project-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    border: 1px solid #e3e3e3;
+    border-radius: 4px;
+    background: white;
+}
+
+.project-item:hover {
+    background: #f8f9fa;
+}
+
+.project-item.assigned {
+    background: #fff3cd;
+    border-color: #ffeaa7;
+}
+
+.project-item.assigned::after {
+    content: "Currently assigned";
+    color: #856404;
+    font-size: 0.8rem;
+    margin-left: auto;
+}
+
+.project-checkbox {
+    margin-right: 0.5rem;
+}
+
+.project-info {
+    flex-grow: 1;
+}
+
+.project-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.project-platform {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.project-current-product {
+    font-size: 0.8rem;
+    color: #dc3545;
+    font-style: italic;
+}
+
+.bulk-actions {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+}
+
+.btn-bulk {
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bulk-assign-container">
+    <h1>{{ title }}</h1>
+    
+    <div class="product-info">
+        <h3>📦 {{ product.name }}</h3>
+        {% if product.description %}
+            <p><strong>Description:</strong> {{ product.description }}</p>
+        {% endif %}
+        {% if product.owner_team %}
+            <p><strong>Team:</strong> {{ product.owner_team }}</p>
+        {% endif %}
+        <p><strong>Priority:</strong> 
+            <span class="priority-{{ product.priority }}">{{ product.get_priority_display }}</span>
+        </p>
+        {% if product.parent %}
+            <p><strong>Parent:</strong> {{ product.parent.hierarchy_path }}</p>
+        {% endif %}
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="bulk-actions">
+            <h4>Bulk Actions:</h4>
+            <button type="button" class="btn btn-sm btn-secondary btn-bulk" onclick="selectAll()">
+                Select All Unassigned
+            </button>
+            <button type="button" class="btn btn-sm btn-secondary btn-bulk" onclick="selectNone()">
+                Deselect All
+            </button>
+            <button type="button" class="btn btn-sm btn-secondary btn-bulk" onclick="selectByPlatform()">
+                Select by Platform
+            </button>
+        </div>
+
+        {% for org_data in organizations_with_projects %}
+        <div class="organization-section">
+            <div class="organization-header">
+                🏢 {{ org_data.organization.name }} ({{ org_data.organization.slug }})
+                <span style="float: right; font-weight: normal; font-size: 0.9rem;">
+                    {{ org_data.projects|length }} projects
+                </span>
+            </div>
+            
+            <div class="projects-grid">
+                {% for project in org_data.projects %}
+                <div class="project-item {% if project.product and project.product != product %}assigned{% endif %}">
+                    <input type="checkbox" 
+                           name="projects" 
+                           value="{{ project.id }}" 
+                           class="project-checkbox"
+                           data-platform="{{ project.platform|default:'unknown' }}"
+                           {% if project.product and project.product != product %}disabled{% endif %}>
+                    
+                    <div class="project-info">
+                        <div class="project-name">{{ project.name }}</div>
+                        {% if project.platform %}
+                            <div class="project-platform">Platform: {{ project.platform }}</div>
+                        {% endif %}
+                        {% if project.product and project.product != product %}
+                            <div class="project-current-product">
+                                Currently assigned to: {{ project.product.hierarchy_path }}
+                            </div>
+                        {% elif project.product == product %}
+                            <div style="color: #28a745; font-size: 0.8rem;">
+                                ✓ Already assigned to this product
+                            </div>
+                        {% else %}
+                            <div style="color: #6c757d; font-size: 0.8rem;">
+                                Not assigned to any product
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="alert alert-info">
+            <h4>No Sentry Projects Found</h4>
+            <p>No Sentry projects are available for assignment. Make sure you have:</p>
+            <ul>
+                <li>Added at least one Sentry organization</li>
+                <li>Synced your Sentry data to import projects</li>
+            </ul>
+            <a href="{% url 'admin:sentry_sentryorganization_changelist' %}" class="btn btn-primary">
+                Manage Sentry Organizations
+            </a>
+        </div>
+        {% endfor %}
+
+        {% if organizations_with_projects %}
+        <div class="form-actions" style="margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 6px;">
+            <button type="submit" class="btn btn-primary btn-lg">
+                Assign Selected Projects to "{{ product.name }}"
+            </button>
+            <a href="{% url 'admin:products_product_changelist' %}" class="btn btn-secondary btn-lg" style="margin-left: 1rem;">
+                Cancel
+            </a>
+            
+            <div style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+                <span id="selected-count">0</span> projects selected for assignment
+            </div>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<script>
+function selectAll() {
+    const checkboxes = document.querySelectorAll('input[name="projects"]:not([disabled])');
+    checkboxes.forEach(cb => cb.checked = true);
+    updateSelectedCount();
+}
+
+function selectNone() {
+    const checkboxes = document.querySelectorAll('input[name="projects"]');
+    checkboxes.forEach(cb => cb.checked = false);
+    updateSelectedCount();
+}
+
+function selectByPlatform() {
+    const platform = prompt('Enter platform name (e.g., javascript, python, java):');
+    if (!platform) return;
+    
+    const checkboxes = document.querySelectorAll('input[name="projects"]:not([disabled])');
+    checkboxes.forEach(cb => {
+        const cbPlatform = cb.getAttribute('data-platform');
+        cb.checked = cbPlatform && cbPlatform.toLowerCase().includes(platform.toLowerCase());
+    });
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const selected = document.querySelectorAll('input[name="projects"]:checked').length;
+    document.getElementById('selected-count').textContent = selected;
+}
+
+// Update count when checkboxes change
+document.addEventListener('change', function(e) {
+    if (e.target.name === 'projects') {
+        updateSelectedCount();
+    }
+});
+
+// Initial count
+document.addEventListener('DOMContentLoaded', updateSelectedCount);
+</script>
+{% endblock %}

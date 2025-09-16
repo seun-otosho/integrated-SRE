@@ -1,0 +1,256 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.bulk-assign-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.info-section {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid #2196f3;
+}
+
+.projects-section {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+}
+
+.projects-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+}
+
+.project-item {
+    padding: 0.75rem;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.project-item:last-child {
+    border-bottom: none;
+}
+
+.project-info {
+    flex-grow: 1;
+}
+
+.project-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.project-details {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.project-current {
+    font-size: 0.8rem;
+    color: #dc3545;
+    font-style: italic;
+}
+
+.product-selection {
+    background: white;
+    padding: 1.5rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+}
+
+.product-option {
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.product-option:hover {
+    background: #f8f9fa;
+}
+
+.product-option.selected {
+    background: #e8f5e8;
+    border-color: #28a745;
+}
+
+.product-hierarchy {
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.form-actions {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.stat-number {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #2196f3;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bulk-assign-container">
+    <h1>{{ title }}</h1>
+    
+    <div class="info-section">
+        <h4>📋 Bulk Assignment via Issues</h4>
+        <p>You've selected issues from multiple projects. This will assign all the projects containing these issues to a single product.</p>
+        
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-number">{{ projects|length }}</div>
+                <div class="stat-label">Unique Projects</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">
+                    {% for project in projects %}
+                        {% if project.organization %}{{ project.organization.name }}{% endif %}
+                        {% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="stat-label">Organizations</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="projects-section">
+        <h3>📦 Projects to be Assigned</h3>
+        <p>The following projects will be assigned to the selected product:</p>
+        
+        <div class="projects-list">
+            {% for project in projects %}
+            <div class="project-item">
+                <div class="project-info">
+                    <div class="project-name">{{ project.name }}</div>
+                    <div class="project-details">
+                        Organization: {{ project.organization.name }}
+                        {% if project.platform %} | Platform: {{ project.platform }}{% endif %}
+                    </div>
+                    {% if project.product %}
+                        <div class="project-current">Currently assigned to: {{ project.product.hierarchy_path }}</div>
+                    {% else %}
+                        <div style="color: #6c757d; font-size: 0.8rem;">Not assigned to any product</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="product-selection">
+            <h3>🎯 Select Target Product</h3>
+            <p>Choose a product to assign these projects to:</p>
+            
+            {% for product in products %}
+            <div class="product-option">
+                <label style="cursor: pointer; display: block; width: 100%;">
+                    <input type="radio" name="product" value="{{ product.id }}" style="margin-right: 0.5rem;">
+                    <strong>{{ product.name }}</strong>
+                    {% if product.priority %}
+                        <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ product.get_priority_display }}</span>
+                    {% endif %}
+                    {% if product.hierarchy_path != product.name %}
+                        <div class="product-hierarchy">Full path: {{ product.hierarchy_path }}</div>
+                    {% endif %}
+                    {% if product.description %}
+                        <div class="product-hierarchy">{{ product.description|truncatechars:150 }}</div>
+                    {% endif %}
+                    {% if product.owner_team %}
+                        <div class="product-hierarchy">👥 Team: {{ product.owner_team }}</div>
+                    {% endif %}
+                    <div class="product-hierarchy">
+                        Currently has {{ product.sentry_projects_count }} project{{ product.sentry_projects_count|pluralize }}
+                    </div>
+                </label>
+            </div>
+            {% empty %}
+            <div class="alert alert-warning">
+                <h4>No Products Available</h4>
+                <p>No products have been created yet. You need to create products before assigning projects.</p>
+                <a href="{% url 'admin:products_product_add' %}" class="btn btn-primary">
+                    Create Product
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if products %}
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-lg">
+                Assign {{ projects|length }} Project{{ projects|length|pluralize }} to Selected Product
+            </button>
+            <a href="{% url 'admin:sentry_sentryissue_changelist' %}" class="btn btn-secondary btn-lg" style="margin-left: 1rem;">
+                Cancel
+            </a>
+            
+            <div style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+                This will update the product assignment for all selected projects
+            </div>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<script>
+// Add visual feedback for selected product
+document.addEventListener('change', function(e) {
+    if (e.target.name === 'product') {
+        // Remove selected class from all options
+        document.querySelectorAll('.product-option').forEach(option => {
+            option.classList.remove('selected');
+        });
+        
+        // Add selected class to current option
+        e.target.closest('.product-option').classList.add('selected');
+    }
+});
+</script>
+{% endblock %}

@@ -36,6 +36,67 @@ class SentryOrganizationAdmin(admin.ModelAdmin):
     
     actions = ['sync_selected_organizations', 'enable_sync', 'disable_sync']
     
+    def get_urls(self):
+        """Add custom URLs for bulk operations"""
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'bulk-assign-issues-to-product/',
+                self.admin_site.admin_view(self.bulk_assign_issues_to_product_view),
+                name='sentry_bulk_assign_issues_to_product',
+            ),
+        ]
+        return custom_urls + urls
+    
+    def bulk_assign_issues_to_product_view(self, request):
+        """View for selecting product for bulk assignment"""
+        from django.shortcuts import render, redirect
+        from django.contrib import messages
+        from apps.products.models import Product
+        from apps.sentry.models import SentryProject
+        
+        project_ids = request.session.get('bulk_assign_project_ids', [])
+        if not project_ids:
+            messages.error(request, 'No projects found for bulk assignment.')
+            return redirect('admin:sentry_sentryissue_changelist')
+        
+        projects = SentryProject.objects.filter(id__in=project_ids).select_related('organization', 'product')
+        
+        if request.method == 'POST':
+            product_id = request.POST.get('product')
+            if product_id:
+                try:
+                    product = Product.objects.get(id=product_id)
+                    updated_count = SentryProject.objects.filter(id__in=project_ids).update(product=product)
+                    
+                    messages.success(
+                        request,
+                        f'Successfully assigned {updated_count} projects to "{product.name}"'
+                    )
+                    
+                    # Clear session data
+                    del request.session['bulk_assign_project_ids']
+                    
+                except Product.DoesNotExist:
+                    messages.error(request, 'Selected product does not exist.')
+            else:
+                messages.warning(request, 'Please select a product.')
+            
+            return redirect('admin:sentry_sentryissue_changelist')
+        
+        # Get all products for selection
+        products = Product.objects.all().order_by('name')
+        
+        context = {
+            'projects': projects,
+            'products': products,
+            'title': 'Bulk Assign Projects to Product',
+            'opts': self.model._meta,
+        }
+        
+        return render(request, 'admin/sentry/bulk_assign_to_product.html', context)
+    
     def last_sync_display(self, obj):
         if obj.last_sync:
             time_diff = timezone.now() - obj.last_sync
@@ -91,6 +152,7 @@ class SentryProjectAdmin(admin.ModelAdmin):
     list_filter = ['platform', 'status', 'organization', 'product', 'created_at']
     search_fields = ['name', 'slug', 'organization__name', 'product__name']
     readonly_fields = ['sentry_id', 'date_created', 'first_event', 'created_at', 'updated_at']
+    actions = ['bulk_assign_to_product', 'remove_product_assignment']
     
     fieldsets = (
         ('Project Info', {
@@ -126,6 +188,88 @@ class SentryProjectAdmin(admin.ModelAdmin):
             return format_html('<a href="{}">{}</a>', url, last_issue.last_seen.strftime('%Y-%m-%d %H:%M'))
         return '-'
     last_issue.short_description = 'Last Issue'
+    
+    def bulk_assign_to_product(self, request, queryset):
+        """Bulk assign selected projects to a product"""
+        from django.http import HttpResponseRedirect
+        from django.urls import reverse
+        
+        project_ids = list(queryset.values_list('id', flat=True))
+        request.session['bulk_assign_project_ids'] = project_ids
+        
+        url = reverse('admin:sentry_bulk_assign_projects_to_product')
+        return HttpResponseRedirect(url)
+    
+    bulk_assign_to_product.short_description = 'Bulk assign to product'
+    
+    def remove_product_assignment(self, request, queryset):
+        """Remove product assignment from selected projects"""
+        count = queryset.update(product=None)
+        self.message_user(request, f'Removed product assignment from {count} projects.')
+    remove_product_assignment.short_description = 'Remove product assignment'
+    
+    def get_urls(self):
+        """Add custom URLs for bulk operations"""
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'bulk-assign-to-product/',
+                self.admin_site.admin_view(self.bulk_assign_projects_to_product_view),
+                name='sentry_bulk_assign_projects_to_product',
+            ),
+        ]
+        return custom_urls + urls
+    
+    def bulk_assign_projects_to_product_view(self, request):
+        """View for bulk assigning projects to a product"""
+        from django.shortcuts import render, redirect
+        from django.contrib import messages
+        from apps.products.models import Product
+        
+        project_ids = request.session.get('bulk_assign_project_ids', [])
+        if not project_ids:
+            messages.error(request, 'No projects selected for bulk assignment.')
+            return redirect('admin:sentry_sentryproject_changelist')
+        
+        projects = SentryProject.objects.filter(id__in=project_ids).select_related('organization', 'product')
+        
+        if request.method == 'POST':
+            product_id = request.POST.get('product')
+            if product_id:
+                try:
+                    product = Product.objects.get(id=product_id)
+                    updated_count = SentryProject.objects.filter(id__in=project_ids).update(product=product)
+                    
+                    messages.success(
+                        request,
+                        f'Successfully assigned {updated_count} projects to "{product.name}"'
+                    )
+                    
+                    # Clear session data
+                    del request.session['bulk_assign_project_ids']
+                    
+                except Product.DoesNotExist:
+                    messages.error(request, 'Selected product does not exist.')
+            else:
+                # Remove assignment if no product selected
+                updated_count = SentryProject.objects.filter(id__in=project_ids).update(product=None)
+                messages.success(request, f'Removed product assignment from {updated_count} projects.')
+                del request.session['bulk_assign_project_ids']
+            
+            return redirect('admin:sentry_sentryproject_changelist')
+        
+        # Get all products for selection
+        products = Product.objects.all().order_by('name')
+        
+        context = {
+            'projects': projects,
+            'products': products,
+            'title': 'Bulk Assign Projects to Product',
+            'opts': self.model._meta,
+        }
+        
+        return render(request, 'admin/sentry/bulk_assign_projects_to_product.html', context)
 
 
 @admin.register(SentryIssue)
@@ -152,7 +296,7 @@ class SentryIssueAdmin(admin.ModelAdmin):
         }),
     )
     
-    actions = ['mark_resolved', 'mark_ignored']
+    actions = ['mark_resolved', 'mark_ignored', 'bulk_assign_to_product']
     
     def title_short(self, obj):
         title = obj.title[:80] + '...' if len(obj.title) > 80 else obj.title
@@ -169,6 +313,27 @@ class SentryIssueAdmin(admin.ModelAdmin):
         count = queryset.update(status=SentryIssue.Status.IGNORED)
         self.message_user(request, f'Marked {count} issues as ignored.')
     mark_ignored.short_description = 'Mark as ignored'
+    
+    def bulk_assign_to_product(self, request, queryset):
+        """Bulk assign projects to a product"""
+        from django.http import HttpResponseRedirect
+        from django.urls import reverse
+        
+        # Get unique projects from selected issues
+        project_ids = list(queryset.values_list('project_id', flat=True).distinct())
+        
+        if not project_ids:
+            self.message_user(request, 'No projects found in selected issues.', level='ERROR')
+            return
+        
+        # Store project IDs in session for bulk assignment
+        request.session['bulk_assign_project_ids'] = project_ids
+        
+        # Redirect to product selection view
+        url = reverse('admin:sentry_bulk_assign_issues_to_product')
+        return HttpResponseRedirect(url)
+    
+    bulk_assign_to_product.short_description = 'Assign projects to product (via issues)'
 
 
 @admin.register(SentryEvent)

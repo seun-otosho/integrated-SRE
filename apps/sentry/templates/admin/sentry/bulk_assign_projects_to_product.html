@@ -1,0 +1,164 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.bulk-assign-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.projects-section {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+}
+
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.project-item {
+    background: white;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.project-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.project-org {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.project-current {
+    font-size: 0.8rem;
+    color: #dc3545;
+    font-style: italic;
+}
+
+.product-selection {
+    background: white;
+    padding: 1.5rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+}
+
+.product-option {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+}
+
+.product-option:hover {
+    background: #f8f9fa;
+}
+
+.product-hierarchy {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.form-actions {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 6px;
+    text-align: center;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bulk-assign-container">
+    <h1>{{ title }}</h1>
+    
+    <div class="projects-section">
+        <h3>📦 Selected Projects ({{ projects|length }})</h3>
+        <p>The following projects will be assigned to the selected product:</p>
+        
+        <div class="projects-grid">
+            {% for project in projects %}
+            <div class="project-item">
+                <div class="project-name">{{ project.name }}</div>
+                <div class="project-org">Organization: {{ project.organization.name }}</div>
+                {% if project.platform %}
+                    <div class="project-org">Platform: {{ project.platform }}</div>
+                {% endif %}
+                {% if project.product %}
+                    <div class="project-current">Currently: {{ project.product.hierarchy_path }}</div>
+                {% else %}
+                    <div style="color: #6c757d; font-size: 0.8rem;">Not assigned to any product</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="product-selection">
+            <h3>🎯 Select Target Product</h3>
+            <p>Choose a product to assign these projects to, or leave unselected to remove product assignment:</p>
+            
+            <div style="margin-bottom: 1rem;">
+                <label>
+                    <input type="radio" name="product" value="" checked>
+                    <strong>Remove product assignment</strong>
+                    <div class="product-hierarchy">Remove these projects from any product</div>
+                </label>
+            </div>
+            
+            {% for product in products %}
+            <div class="product-option">
+                <label>
+                    <input type="radio" name="product" value="{{ product.id }}">
+                    <strong>{{ product.name }}</strong>
+                    {% if product.hierarchy_path != product.name %}
+                        <div class="product-hierarchy">{{ product.hierarchy_path }}</div>
+                    {% endif %}
+                    {% if product.description %}
+                        <div class="product-hierarchy">{{ product.description|truncatechars:100 }}</div>
+                    {% endif %}
+                    {% if product.owner_team %}
+                        <div class="product-hierarchy">Team: {{ product.owner_team }}</div>
+                    {% endif %}
+                </label>
+            </div>
+            {% empty %}
+            <div class="alert alert-warning">
+                <h4>No Products Available</h4>
+                <p>No products have been created yet. You need to create products before assigning projects.</p>
+                <a href="{% url 'admin:products_product_add' %}" class="btn btn-primary">
+                    Create Product
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if products %}
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-lg">
+                Assign Projects
+            </button>
+            <a href="{% url 'admin:sentry_sentryproject_changelist' %}" class="btn btn-secondary btn-lg" style="margin-left: 1rem;">
+                Cancel
+            </a>
+        </div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}
