@@ -921,3 +921,16 @@ What would you like to tackle next?
 2. **Implement Phase 3** - Advanced analytics and automation
 3. **Create custom dashboards** for executives
 4. **Build external APIs** for other tools
+
+
+---
+---
+```shell
+
+./manage.py graph_models  -a -o models/models.png
+./manage.py graph_models users customers organizations -o models/apps.png
+./manage.py graph_models -a --rankdir LR -I Product,SentryIssue,SentryJiraLink,SentryOrganization,JiraOrganization,JiraProject,JiraIssue,SentryProject,SonarCloudOrganization,SonarCloudProject -g -o erd/integrated.png
+
+```
+---
+---
