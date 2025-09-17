@@ -7,7 +7,7 @@ from django.db.models import Count, Q
 
 from .models import (
     SonarCloudOrganization, SonarCloudProject, QualityMeasurement,
-    CodeIssue, SonarSyncLog
+    CodeIssue, SonarSyncLog, SentrySonarLink, JiraSonarLink, QualityIssueTicket
 )
 from .services import sync_sonarcloud_organization
 
@@ -284,6 +284,88 @@ class SonarCloudProjectAdmin(admin.ModelAdmin):
         
         url = reverse('admin:sonarcloud_bulk_assign_projects_to_product')
         return HttpResponseRedirect(url)
+    
+    def get_urls(self):
+        """Add custom URLs for bulk operations"""
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'bulk-assign-projects-to-product/',
+                self.admin_site.admin_view(self.bulk_assign_projects_to_product_view),
+                name='sonarcloud_bulk_assign_projects_to_product',
+            ),
+        ]
+        return custom_urls + urls
+    
+    def bulk_assign_projects_to_product_view(self, request):
+        """View for bulk assigning SonarCloud projects to a product"""
+        from django.shortcuts import render, redirect
+        from django.contrib import messages
+        from apps.products.models import Product
+        
+        # Get project IDs from session
+        project_ids = request.session.get('bulk_assign_sonarcloud_project_ids', [])
+        if not project_ids:
+            messages.error(request, 'No projects selected for bulk assignment.')
+            return redirect('admin:sonarcloud_sonarcloudproject_changelist')
+        
+        projects = SonarCloudProject.objects.filter(id__in=project_ids).select_related('sonarcloud_organization', 'product')
+        
+        if request.method == 'POST':
+            product_id = request.POST.get('product')
+            
+            if product_id:
+                try:
+                    product = Product.objects.get(id=product_id)
+                    
+                    # Update projects
+                    updated_count = projects.update(product=product)
+                    
+                    messages.success(
+                        request,
+                        f'Successfully assigned {updated_count} SonarCloud projects to "{product.name}"'
+                    )
+                    
+                    # Clear session
+                    del request.session['bulk_assign_sonarcloud_project_ids']
+                    
+                except Product.DoesNotExist:
+                    messages.error(request, 'Selected product does not exist.')
+            else:
+                # Unassign from product
+                updated_count = projects.update(product=None)
+                messages.success(
+                    request,
+                    f'Successfully unassigned {updated_count} SonarCloud projects from any product'
+                )
+                
+                # Clear session
+                del request.session['bulk_assign_sonarcloud_project_ids']
+            
+            return redirect('admin:sonarcloud_sonarcloudproject_changelist')
+        
+        # Group projects by organization for display
+        organizations_with_projects = {}
+        for project in projects:
+            org_name = project.sonarcloud_organization.name
+            if org_name not in organizations_with_projects:
+                organizations_with_projects[org_name] = []
+            organizations_with_projects[org_name].append(project)
+        
+        # Get all products for selection
+        products = Product.objects.all().order_by('name')
+        
+        context = {
+            'title': 'Bulk Assign SonarCloud Projects to Product',
+            'organizations_with_projects': organizations_with_projects,
+            'products': products,
+            'projects_count': len(project_ids),
+            'opts': SonarCloudProject._meta,
+            'has_change_permission': True,
+        }
+        
+        return render(request, 'admin/sonarcloud/bulk_assign_projects_to_product.html', context)
     bulk_assign_to_product.short_description = 'Bulk assign to product'
     
     def enable_sync(self, request, queryset):
@@ -527,3 +609,253 @@ class SonarSyncLogAdmin(admin.ModelAdmin):
                 return f"{minutes}m {seconds}s"
         return '-'
     duration_display.short_description = 'Duration'
+
+
+@admin.register(SentrySonarLink)
+class SentrySonarLinkAdmin(admin.ModelAdmin):
+    list_display = [
+        'link_id', 'sentry_project_display', 'sonarcloud_project_display', 'link_type',
+        'quality_gate_status', 'created_by_user', 'created_at'
+    ]
+    list_filter = [
+        'link_type', 'block_releases_on_quality_gate', 
+        'sonarcloud_project__sonarcloud_organization', 'created_at'
+    ]
+    search_fields = [
+        'sentry_project__name', 'sonarcloud_project__name', 'creation_notes'
+    ]
+    readonly_fields = ['created_at', 'updated_at', 'last_quality_sync']
+    
+    fieldsets = (
+        ('Link Info', {
+            'fields': ('sentry_project', 'sonarcloud_project', 'link_type', 'created_by_user')
+        }),
+        ('Quality Gate Settings', {
+            'fields': (
+                'block_releases_on_quality_gate', 'minimum_coverage_threshold', 
+                'maximum_debt_threshold'
+            )
+        }),
+        ('Sync Tracking', {
+            'fields': ('last_quality_sync', 'quality_sync_errors'),
+            'classes': ('collapse',)
+        }),
+        ('Notes', {
+            'fields': ('creation_notes',),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'sentry_project', 'sentry_project__organization', 
+            'sonarcloud_project', 'sonarcloud_project__sonarcloud_organization',
+            'created_by_user'
+        )
+    
+    def link_id(self, obj):
+        return f"S{obj.sentry_project.id}-SC{obj.sonarcloud_project.id}"
+    link_id.short_description = 'Link ID'
+    
+    def sentry_project_display(self, obj):
+        url = reverse('admin:sentry_sentryproject_change', args=[obj.sentry_project.pk])
+        return format_html('<a href="{}">{}</a>', url, obj.sentry_project)
+    sentry_project_display.short_description = 'Sentry Project'
+    
+    def sonarcloud_project_display(self, obj):
+        url = reverse('admin:sonarcloud_sonarcloudproject_change', args=[obj.sonarcloud_project.pk])
+        return format_html('<a href="{}">{}</a>', url, obj.sonarcloud_project)
+    sonarcloud_project_display.short_description = 'SonarCloud Project'
+    
+    def quality_gate_status(self, obj):
+        status = obj.current_quality_status
+        if status['status'] == 'ok':
+            return format_html('<span style="color: green;">✅ Passed</span>')
+        elif status['status'] == 'blocked':
+            issues = ', '.join(status.get('issues', []))
+            return format_html('<span style="color: red;">❌ Blocked</span><br><small>{}</small>', issues)
+        else:
+            return format_html('<span style="color: gray;">❓ {}</span>', status.get('message', 'Unknown'))
+    quality_gate_status.short_description = 'Quality Status'
+
+
+@admin.register(JiraSonarLink)
+class JiraSonarLinkAdmin(admin.ModelAdmin):
+    list_display = [
+        'link_id', 'jira_project_display', 'sonarcloud_project_display', 'link_type',
+        'automation_status', 'tickets_created_count', 'created_by_user', 'created_at'
+    ]
+    list_filter = [
+        'link_type', 'auto_create_security_tickets', 'auto_create_debt_tickets',
+        'sonarcloud_project__sonarcloud_organization', 'created_at'
+    ]
+    search_fields = [
+        'jira_project__jira_key', 'jira_project__name', 'sonarcloud_project__name'
+    ]
+    readonly_fields = ['created_at', 'updated_at', 'last_ticket_creation_sync', 'tickets_created_count']
+    actions = ['process_automated_tickets']
+    
+    fieldsets = (
+        ('Link Info', {
+            'fields': ('jira_project', 'sonarcloud_project', 'link_type', 'created_by_user')
+        }),
+        ('Automation Settings', {
+            'fields': (
+                'auto_create_security_tickets', 'auto_create_debt_tickets', 'auto_create_coverage_tickets'
+            )
+        }),
+        ('Thresholds', {
+            'fields': (
+                'security_severity_threshold', 'debt_threshold_hours', 'coverage_drop_threshold'
+            )
+        }),
+        ('JIRA Ticket Settings', {
+            'fields': (
+                'default_issue_type', 'default_priority', 'security_issue_type', 'security_priority'
+            )
+        }),
+        ('Sync Tracking', {
+            'fields': ('last_ticket_creation_sync', 'tickets_created_count'),
+            'classes': ('collapse',)
+        }),
+        ('Notes', {
+            'fields': ('creation_notes',),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'jira_project', 'jira_project__jira_organization',
+            'sonarcloud_project', 'sonarcloud_project__sonarcloud_organization',
+            'created_by_user'
+        )
+    
+    def link_id(self, obj):
+        return f"J{obj.jira_project.id}-SC{obj.sonarcloud_project.id}"
+    link_id.short_description = 'Link ID'
+    
+    def jira_project_display(self, obj):
+        url = reverse('admin:jira_jiraproject_change', args=[obj.jira_project.pk])
+        return format_html('<a href="{}">{}</a>', url, obj.jira_project)
+    jira_project_display.short_description = 'JIRA Project'
+    
+    def sonarcloud_project_display(self, obj):
+        url = reverse('admin:sonarcloud_sonarcloudproject_change', args=[obj.sonarcloud_project.pk])
+        return format_html('<a href="{}">{}</a>', url, obj.sonarcloud_project)
+    sonarcloud_project_display.short_description = 'SonarCloud Project'
+    
+    def automation_status(self, obj):
+        statuses = []
+        if obj.auto_create_security_tickets:
+            statuses.append('🔒 Security')
+        if obj.auto_create_debt_tickets:
+            statuses.append('🔧 Debt')
+        if obj.auto_create_coverage_tickets:
+            statuses.append('📊 Coverage')
+        
+        if statuses:
+            return format_html('<span style="color: green;">{}</span>', ' | '.join(statuses))
+        else:
+            return format_html('<span style="color: gray;">Manual only</span>')
+    automation_status.short_description = 'Automation'
+    
+    def process_automated_tickets(self, request, queryset):
+        from .services_integration import JiraQualityService
+        service = JiraQualityService()
+        
+        total_tickets = 0
+        for link in queryset:
+            try:
+                results = service.process_automated_ticket_creation(link)
+                tickets_created = (
+                    results['security_tickets'] + 
+                    results['debt_tickets'] + 
+                    results['coverage_tickets']
+                )
+                total_tickets += tickets_created
+                
+                if results['errors']:
+                    for error in results['errors']:
+                        self.message_user(request, f'{link}: {error}', level='WARNING')
+                        
+            except Exception as e:
+                self.message_user(request, f'Failed to process {link}: {str(e)}', level='ERROR')
+        
+        self.message_user(request, f'Successfully created {total_tickets} automated tickets.')
+    process_automated_tickets.short_description = 'Process automated ticket creation'
+
+
+@admin.register(QualityIssueTicket)
+class QualityIssueTicketAdmin(admin.ModelAdmin):
+    list_display = [
+        'ticket_id', 'jira_issue_display', 'sonarcloud_issue_display', 
+        'creation_reason', 'auto_created', 'sync_enabled', 'created_at'
+    ]
+    list_filter = [
+        'creation_reason', 'auto_created', 'sync_enabled',
+        'jira_sonar_link__jira_project__jira_organization', 'created_at'
+    ]
+    search_fields = [
+        'jira_issue__jira_key', 'jira_issue__summary', 
+        'sonarcloud_issue__sonarcloud_key', 'sonarcloud_issue__message'
+    ]
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Ticket Link Info', {
+            'fields': ('sonarcloud_issue', 'jira_issue', 'jira_sonar_link')
+        }),
+        ('Creation Context', {
+            'fields': ('creation_reason', 'auto_created')
+        }),
+        ('Sync Settings', {
+            'fields': ('sync_enabled',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'sonarcloud_issue', 'sonarcloud_issue__project',
+            'jira_issue', 'jira_issue__jira_project',
+            'jira_sonar_link'
+        )
+    
+    def ticket_id(self, obj):
+        return f"{obj.jira_issue.jira_key}←{obj.sonarcloud_issue.sonarcloud_key}"
+    ticket_id.short_description = 'Ticket ID'
+    
+    def jira_issue_display(self, obj):
+        admin_url = reverse('admin:jira_jiraissue_change', args=[obj.jira_issue.pk])
+        jira_url = obj.jira_issue.jira_url
+        
+        if jira_url:
+            return format_html(
+                '<a href="{}">{}</a> | <a href="{}" target="_blank">JIRA</a>',
+                admin_url, obj.jira_issue.jira_key, jira_url
+            )
+        else:
+            return format_html('<a href="{}">{}</a>', admin_url, obj.jira_issue.jira_key)
+    jira_issue_display.short_description = 'JIRA Issue'
+    
+    def sonarcloud_issue_display(self, obj):
+        admin_url = reverse('admin:sonarcloud_codeissue_change', args=[obj.sonarcloud_issue.pk])
+        message = obj.sonarcloud_issue.message
+        if len(message) > 50:
+            message = message[:50] + '...'
+        
+        return format_html('<a href="{}" title="{}">{}</a>', 
+                          admin_url, obj.sonarcloud_issue.message, message)
+    sonarcloud_issue_display.short_description = 'SonarCloud Issue'

@@ -1,0 +1,326 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block title %}{{ title }} | {% trans 'Django site admin' %}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='sonarcloud' %}">SonarCloud</a>
+    &rsaquo; <a href="{% url 'admin:sonarcloud_sonarcloudproject_changelist' %}">SonarCloud Projects</a>
+    &rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bulk-assign-container">
+    <h1>{{ title }}</h1>
+    
+    <div class="bulk-assign-info">
+        <p><strong>{{ projects_count }}</strong> SonarCloud projects selected for bulk assignment.</p>
+    </div>
+
+    <form method="post" class="bulk-assign-form">
+        {% csrf_token %}
+        
+        <div class="product-selection">
+            <h2>Select Product</h2>
+            <div class="form-row">
+                <label for="product">Assign to Product:</label>
+                <select name="product" id="product">
+                    <option value="">-- Unassign from any product --</option>
+                    {% for product in products %}
+                        <option value="{{ product.id }}">{{ product.hierarchy_path }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="projects-preview">
+            <h2>Projects to be Assigned</h2>
+            {% for org_name, projects in organizations_with_projects.items %}
+                <div class="organization-group">
+                    <h3>{{ org_name }}</h3>
+                    <div class="projects-grid">
+                        {% for project in projects %}
+                            <div class="project-card">
+                                <div class="project-info">
+                                    <strong>{{ project.project_key }}</strong> - {{ project.name }}
+                                </div>
+                                <div class="project-current">
+                                    {% if project.product %}
+                                        Current: {{ project.product.hierarchy_path }}
+                                    {% else %}
+                                        <em>No product assigned</em>
+                                    {% endif %}
+                                </div>
+                                <div class="project-meta">
+                                    {% if project.quality_gate_status != 'NONE' %}
+                                        Quality Gate: 
+                                        {% if project.quality_gate_status == 'OK' %}
+                                            <span style="color: green;">✅ Passed</span>
+                                        {% elif project.quality_gate_status == 'ERROR' %}
+                                            <span style="color: red;">❌ Failed</span>
+                                        {% else %}
+                                            <span style="color: orange;">⚠️ Warning</span>
+                                        {% endif %}
+                                    {% endif %}
+                                    {% if project.coverage %}
+                                        | Coverage: {{ project.coverage|floatformat:1 }}%
+                                    {% endif %}
+                                    {% if project.lines_of_code %}
+                                        | {{ project.lines_of_code }} LOC
+                                    {% endif %}
+                                </div>
+                                <div class="project-ratings">
+                                    {% if project.reliability_rating or project.security_rating or project.maintainability_rating %}
+                                        Ratings: 
+                                        <span style="color: {% if project.reliability_rating == 'A' %}green{% elif project.reliability_rating == 'B' %}yellowgreen{% elif project.reliability_rating == 'C' %}orange{% elif project.reliability_rating == 'D' %}orangered{% elif project.reliability_rating == 'E' %}red{% else %}gray{% endif %}">
+                                            R:{{ project.reliability_rating|default:"-" }}
+                                        </span>
+                                        <span style="color: {% if project.security_rating == 'A' %}green{% elif project.security_rating == 'B' %}yellowgreen{% elif project.security_rating == 'C' %}orange{% elif project.security_rating == 'D' %}orangered{% elif project.security_rating == 'E' %}red{% else %}gray{% endif %}">
+                                            S:{{ project.security_rating|default:"-" }}
+                                        </span>
+                                        <span style="color: {% if project.maintainability_rating == 'A' %}green{% elif project.maintainability_rating == 'B' %}yellowgreen{% elif project.maintainability_rating == 'C' %}orange{% elif project.maintainability_rating == 'D' %}orangered{% elif project.maintainability_rating == 'E' %}red{% else %}gray{% endif %}">
+                                            M:{{ project.maintainability_rating|default:"-" }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="submit-row">
+            <input type="submit" value="Assign Projects" class="default" />
+            <a href="{% url 'admin:sonarcloud_sonarcloudproject_changelist' %}" class="button cancel-link">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<style>
+/* Base styling that works in both light and dark mode */
+.bulk-assign-container {
+    padding: 20px;
+    background: var(--body-bg, #fff);
+    color: var(--body-fg, #333);
+}
+
+.bulk-assign-info {
+    background: var(--darkened-bg, #f8f9fa);
+    border: 1px solid var(--border-color, #dee2e6);
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.bulk-assign-form {
+    max-width: 1200px;
+}
+
+.product-selection {
+    background: var(--body-quiet-color, #f8f9fa);
+    border: 1px solid var(--border-color, #dee2e6);
+    padding: 20px;
+    margin-bottom: 30px;
+    border-radius: 4px;
+}
+
+.product-selection h2 {
+    margin-top: 0;
+    color: var(--body-fg, #333);
+}
+
+.form-row {
+    margin-bottom: 15px;
+}
+
+.form-row label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: var(--body-fg, #333);
+}
+
+.form-row select {
+    width: 100%;
+    max-width: 400px;
+    padding: 8px;
+    border: 1px solid var(--border-color, #ccc);
+    border-radius: 4px;
+    background: var(--body-bg, #fff);
+    color: var(--body-fg, #333);
+}
+
+.projects-preview h2 {
+    color: var(--body-fg, #333);
+    border-bottom: 2px solid var(--border-color, #dee2e6);
+    padding-bottom: 10px;
+}
+
+.organization-group {
+    margin-bottom: 30px;
+}
+
+.organization-group h3 {
+    background: var(--darkened-bg, #e9ecef);
+    color: var(--body-fg, #333);
+    padding: 10px 15px;
+    margin: 0 0 15px 0;
+    border-radius: 4px;
+    border: 1px solid var(--border-color, #dee2e6);
+}
+
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 15px;
+}
+
+.project-card {
+    background: var(--body-bg, #fff);
+    border: 1px solid var(--border-color, #dee2e6);
+    padding: 15px;
+    border-radius: 4px;
+    transition: box-shadow 0.2s ease;
+}
+
+.project-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.project-info {
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: var(--body-fg, #333);
+    font-weight: bold;
+}
+
+.project-current {
+    font-size: 12px;
+    color: var(--body-quiet-color-fg, #666);
+    margin-bottom: 5px;
+}
+
+.project-meta {
+    font-size: 11px;
+    color: var(--body-quiet-color-fg, #888);
+    margin-bottom: 5px;
+}
+
+.project-ratings {
+    font-size: 11px;
+    color: var(--body-quiet-color-fg, #888);
+}
+
+.submit-row {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color, #dee2e6);
+}
+
+.submit-row input[type="submit"] {
+    background: var(--button-bg, #417690);
+    color: var(--button-fg, #fff);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+.submit-row input[type="submit"]:hover {
+    background: var(--button-hover-bg, #205067);
+}
+
+.cancel-link {
+    background: var(--body-quiet-color, #6c757d);
+    color: var(--body-bg, #fff);
+    padding: 10px 20px;
+    text-decoration: none;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.cancel-link:hover {
+    background: var(--body-quiet-color-fg, #5a6268);
+    color: var(--body-bg, #fff);
+}
+
+/* Dark mode specific overrides */
+@media (prefers-color-scheme: dark) {
+    .bulk-assign-container {
+        background: #262626;
+        color: #e8e8e8;
+    }
+    
+    .bulk-assign-info {
+        background: #2b2b2b;
+        border-color: #404040;
+    }
+    
+    .product-selection {
+        background: #2b2b2b;
+        border-color: #404040;
+    }
+    
+    .form-row select {
+        background: #1e1e1e;
+        border-color: #404040;
+        color: #e8e8e8;
+    }
+    
+    .organization-group h3 {
+        background: #1e1e1e;
+        border-color: #404040;
+        color: #e8e8e8;
+    }
+    
+    .project-card {
+        background: #2b2b2b;
+        border-color: #404040;
+    }
+}
+
+/* Class-based dark mode support */
+body.dark .bulk-assign-container,
+[data-theme="dark"] .bulk-assign-container {
+    background: #262626 !important;
+    color: #e8e8e8 !important;
+}
+
+body.dark .bulk-assign-info,
+[data-theme="dark"] .bulk-assign-info {
+    background: #2b2b2b !important;
+    border-color: #404040 !important;
+}
+
+body.dark .product-selection,
+[data-theme="dark"] .product-selection {
+    background: #2b2b2b !important;
+    border-color: #404040 !important;
+}
+
+body.dark .form-row select,
+[data-theme="dark"] .form-row select {
+    background: #1e1e1e !important;
+    border-color: #404040 !important;
+    color: #e8e8e8 !important;
+}
+
+body.dark .organization-group h3,
+[data-theme="dark"] .organization-group h3 {
+    background: #1e1e1e !important;
+    border-color: #404040 !important;
+    color: #e8e8e8 !important;
+}
+
+body.dark .project-card,
+[data-theme="dark"] .project-card {
+    background: #2b2b2b !important;
+    border-color: #404040 !important;
+}
+</style>
+{% endblock %}

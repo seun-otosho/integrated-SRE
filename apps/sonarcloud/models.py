@@ -279,6 +279,196 @@ class CodeIssue(models.Model):
         return colors.get(self.severity, '#666666')
 
 
+# Cross-system integration models
+class SentrySonarLink(models.Model):
+    """Links Sentry projects to SonarCloud projects for quality analysis"""
+    sentry_project = models.ForeignKey("sentry.SentryProject", on_delete=models.CASCADE)
+    sonarcloud_project = models.ForeignKey(SonarCloudProject, on_delete=models.CASCADE)
+    
+    # Link metadata
+    link_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('manual', 'Manually Created'),
+            ('auto', 'Automatically Detected'),
+            ('imported', 'Imported/Discovered'),
+        ],
+        default='manual'
+    )
+    
+    # Quality settings
+    block_releases_on_quality_gate = models.BooleanField(
+        default=False,
+        help_text="Block Sentry releases when SonarCloud quality gate fails"
+    )
+    minimum_coverage_threshold = models.FloatField(
+        null=True, blank=True,
+        help_text="Minimum test coverage required for releases (percentage)"
+    )
+    maximum_debt_threshold = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Maximum technical debt allowed for releases (minutes)"
+    )
+    
+    # Link management
+    created_by_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    creation_notes = models.TextField(blank=True, help_text="Notes about why this link was created")
+    
+    # Quality sync tracking
+    last_quality_sync = models.DateTimeField(null=True, blank=True)
+    quality_sync_errors = models.JSONField(default=list, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'sentry_sonar_links'
+        verbose_name = 'Sentry-SonarCloud Link'
+        verbose_name_plural = 'Sentry-SonarCloud Links'
+        unique_together = ['sentry_project', 'sonarcloud_project']
+    
+    def __str__(self):
+        return f"{self.sentry_project} ↔ {self.sonarcloud_project}"
+    
+    @property
+    def current_quality_status(self):
+        """Get current quality status for release gating"""
+        if not self.sonarcloud_project:
+            return {'status': 'unknown', 'message': 'No SonarCloud project linked'}
+        
+        project = self.sonarcloud_project
+        issues = []
+        
+        # Check quality gate
+        if self.block_releases_on_quality_gate and project.quality_gate_status == 'ERROR':
+            issues.append('Quality gate failed')
+        
+        # Check coverage threshold
+        if (self.minimum_coverage_threshold and 
+            project.coverage is not None and 
+            project.coverage < self.minimum_coverage_threshold):
+            issues.append(f'Coverage {project.coverage:.1f}% below threshold {self.minimum_coverage_threshold}%')
+        
+        # Check debt threshold
+        if (self.maximum_debt_threshold and 
+            project.technical_debt > self.maximum_debt_threshold):
+            debt_hours = project.technical_debt / 60
+            threshold_hours = self.maximum_debt_threshold / 60
+            issues.append(f'Technical debt {debt_hours:.1f}h exceeds threshold {threshold_hours:.1f}h')
+        
+        if issues:
+            return {'status': 'blocked', 'issues': issues}
+        else:
+            return {'status': 'ok', 'message': 'All quality checks passed'}
+
+
+class JiraSonarLink(models.Model):
+    """Links JIRA projects to SonarCloud projects for quality-based issue creation"""
+    jira_project = models.ForeignKey("jira.JiraProject", on_delete=models.CASCADE)
+    sonarcloud_project = models.ForeignKey(SonarCloudProject, on_delete=models.CASCADE)
+    
+    # Link metadata
+    link_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('manual', 'Manually Created'),
+            ('auto', 'Automatically Detected'),
+            ('imported', 'Imported/Discovered'),
+        ],
+        default='manual'
+    )
+    
+    # Automation settings
+    auto_create_security_tickets = models.BooleanField(
+        default=False,
+        help_text="Automatically create JIRA tickets for security vulnerabilities"
+    )
+    auto_create_debt_tickets = models.BooleanField(
+        default=False,
+        help_text="Automatically create JIRA tickets for technical debt above threshold"
+    )
+    auto_create_coverage_tickets = models.BooleanField(
+        default=False,
+        help_text="Automatically create JIRA tickets when coverage drops significantly"
+    )
+    
+    # Thresholds for automation
+    security_severity_threshold = models.CharField(
+        max_length=20,
+        choices=CodeIssue.Severity.choices,
+        default=CodeIssue.Severity.MAJOR,
+        help_text="Minimum severity for auto-creating security tickets"
+    )
+    debt_threshold_hours = models.PositiveIntegerField(
+        default=8,
+        help_text="Create tickets for debt above this threshold (hours)"
+    )
+    coverage_drop_threshold = models.FloatField(
+        default=5.0,
+        help_text="Create tickets when coverage drops by this percentage"
+    )
+    
+    # JIRA ticket settings
+    default_issue_type = models.CharField(max_length=50, default='Task')
+    default_priority = models.CharField(max_length=50, default='Medium')
+    security_issue_type = models.CharField(max_length=50, default='Bug')
+    security_priority = models.CharField(max_length=50, default='High')
+    
+    # Link management
+    created_by_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    creation_notes = models.TextField(blank=True)
+    
+    # Sync tracking
+    last_ticket_creation_sync = models.DateTimeField(null=True, blank=True)
+    tickets_created_count = models.PositiveIntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'jira_sonar_links'
+        verbose_name = 'JIRA-SonarCloud Link'
+        verbose_name_plural = 'JIRA-SonarCloud Links'
+        unique_together = ['jira_project', 'sonarcloud_project']
+    
+    def __str__(self):
+        return f"{self.jira_project} ↔ {self.sonarcloud_project}"
+
+
+class QualityIssueTicket(models.Model):
+    """Tracks JIRA tickets created from SonarCloud quality issues"""
+    sonarcloud_issue = models.ForeignKey(CodeIssue, on_delete=models.CASCADE, related_name='jira_tickets')
+    jira_issue = models.ForeignKey("jira.JiraIssue", on_delete=models.CASCADE, related_name='quality_issues')
+    jira_sonar_link = models.ForeignKey(JiraSonarLink, on_delete=models.CASCADE)
+    
+    # Creation context
+    creation_reason = models.CharField(
+        max_length=50,
+        choices=[
+            ('security', 'Security Vulnerability'),
+            ('debt', 'Technical Debt'),
+            ('coverage', 'Coverage Drop'),
+            ('manual', 'Manual Creation'),
+        ]
+    )
+    
+    # Status tracking
+    auto_created = models.BooleanField(default=False)
+    sync_enabled = models.BooleanField(default=True, help_text="Keep ticket in sync with SonarCloud issue")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'quality_issue_tickets'
+        verbose_name = 'Quality Issue Ticket'
+        verbose_name_plural = 'Quality Issue Tickets'
+        unique_together = ['sonarcloud_issue', 'jira_issue']
+    
+    def __str__(self):
+        return f"{self.jira_issue.jira_key} ← {self.sonarcloud_issue.sonarcloud_key}"
+
+
 class SonarSyncLog(models.Model):
     """Log of sync operations with SonarCloud"""
     

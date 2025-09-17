@@ -274,7 +274,7 @@ class SentryProjectAdmin(admin.ModelAdmin):
 
 @admin.register(SentryIssue)
 class SentryIssueAdmin(admin.ModelAdmin):
-    list_display = ['title_short', 'project', 'status', 'level', 'count', 'user_count', 'last_seen']
+    list_display = ['title_short', 'project', 'status', 'level', 'count', 'user_count', 'quality_context', 'last_seen']
     list_filter = ['status', 'level', 'last_seen', 'first_seen', 'project', 'project__organization']
     search_fields = ['title', 'culprit', 'sentry_id']
     readonly_fields = ['sentry_id', 'permalink', 'first_seen', 'created_at', 'updated_at']
@@ -334,6 +334,55 @@ class SentryIssueAdmin(admin.ModelAdmin):
         return HttpResponseRedirect(url)
     
     bulk_assign_to_product.short_description = 'Assign projects to product (via issues)'
+    
+    def quality_context(self, obj):
+        """Display SonarCloud quality context if available"""
+        try:
+            # Check if SonarCloud integration is available
+            from apps.sonarcloud.services_integration import SentryQualityService
+            service = SentryQualityService()
+            quality_data = service.get_quality_context_for_release(obj.project)
+            
+            if quality_data.get('has_quality_data'):
+                quality_gate = quality_data.get('quality_gate_status', 'NONE')
+                reliability = quality_data.get('reliability_rating', '')
+                security = quality_data.get('security_rating', '')
+                maintainability = quality_data.get('maintainability_rating', '')
+                
+                # Quality gate indicator
+                gate_color = {
+                    'OK': 'green', 'ERROR': 'red', 'WARN': 'orange', 'NONE': 'gray'
+                }.get(quality_gate, 'gray')
+                
+                gate_icon = {
+                    'OK': '✅', 'ERROR': '❌', 'WARN': '⚠️', 'NONE': '❓'
+                }.get(quality_gate, '❓')
+                
+                # Ratings display
+                ratings = []
+                for rating, label in [(reliability, 'R'), (security, 'S'), (maintainability, 'M')]:
+                    if rating:
+                        color = {
+                            'A': 'green', 'B': 'yellowgreen', 'C': 'orange', 
+                            'D': 'orangered', 'E': 'red'
+                        }.get(rating, 'gray')
+                        ratings.append(f'<span style="color: {color}; font-weight: bold;" title="{label}">{rating}</span>')
+                    else:
+                        ratings.append('<span style="color: gray;">-</span>')
+                
+                return format_html(
+                    '<span style="color: {};">{}</span> {}',
+                    gate_color, gate_icon, '/'.join(ratings)
+                )
+            else:
+                return format_html('<span style="color: gray;" title="No SonarCloud data">-</span>')
+                
+        except ImportError:
+            return format_html('<span style="color: gray;" title="SonarCloud not configured">-</span>')
+        except Exception:
+            return format_html('<span style="color: gray;">-</span>')
+    
+    quality_context.short_description = 'Quality'
 
 
 @admin.register(SentryEvent)
