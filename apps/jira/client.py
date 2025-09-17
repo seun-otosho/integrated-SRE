@@ -49,11 +49,22 @@ class JiraAPIClient:
                 except json.JSONDecodeError:
                     return True, {}
             else:
-                logger.error(f"JIRA API error {response.status_code}: {response.text}")
+                error_text = response.text
+                try:
+                    error_json = response.json()
+                    if 'errorMessages' in error_json:
+                        error_text = '; '.join(error_json['errorMessages'])
+                    elif 'message' in error_json:
+                        error_text = error_json['message']
+                except:
+                    pass
+                
+                logger.error(f"JIRA API error {response.status_code} for {url}: {error_text}")
                 return False, {
                     'error': f"HTTP {response.status_code}",
-                    'message': response.text,
-                    'status_code': response.status_code
+                    'message': error_text,
+                    'status_code': response.status_code,
+                    'url': url
                 }
                 
         except requests.exceptions.RequestException as e:
@@ -85,27 +96,33 @@ class JiraAPIClient:
     
     def get_project_issues(self, project_key: str, max_results: int = 100, start_at: int = 0, 
                           jql_filter: str = None) -> Tuple[bool, Dict]:
-        """Get issues for a project"""
-        # Build JQL query
-        base_jql = f'project = {project_key}'
+        """Get issues for a project using JIRA Cloud API v3"""
+        # Build JQL query - escape project key for safety
+        base_jql = f'project = "{project_key}"'
         if jql_filter:
             jql = f'{base_jql} AND ({jql_filter})'
         else:
             jql = base_jql
         
-        params = {
-            'jql': jql,
-            'maxResults': max_results,
-            'startAt': start_at,
-            'expand': 'names,schema',
-            'fields': [
-                'summary', 'description', 'issuetype', 'status', 'priority',
-                'assignee', 'reporter', 'created', 'updated', 'resolutiondate',
-                'labels', 'components', 'fixVersions'
-            ]
+        # Use the new search/jql endpoint with the correct format
+        search_data = {
+            'jql': jql
         }
         
-        return self._make_request('search', params=params)
+        # Add pagination if specified
+        if max_results:
+            search_data['maxResults'] = max_results
+        if start_at:
+            search_data['startAt'] = start_at
+            
+        # Add fields if we want detailed data
+        search_data['fields'] = [
+            'summary', 'description', 'issuetype', 'status', 'priority',
+            'assignee', 'reporter', 'created', 'updated', 'resolutiondate',
+            'labels', 'components', 'fixVersions'
+        ]
+        
+        return self._make_request('search/jql', method='POST', data=search_data)
     
     def get_issue(self, issue_key: str) -> Tuple[bool, Dict]:
         """Get specific issue details"""
@@ -230,7 +247,9 @@ class JiraAPIClient:
             params = {'project': project_key}
             return self._make_request('user/assignable/search', params=params)
         else:
-            return self._make_request('users/search', params={'maxResults': 1000})
+            # Use user search endpoint that works with API v3
+            params = {'maxResults': 1000}
+            return self._make_request('user/search', params=params)
 
 
 def parse_jira_datetime(date_string: str) -> datetime:
