@@ -6,8 +6,7 @@ from datetime import timedelta
 from django.db.models import Count, Q
 
 from .models import (
-    JiraOrganization, JiraProject, JiraIssue, 
-    SentryJiraLink, JiraSyncLog
+    JiraOrganization, JiraProject, JiraIssue, SentryJiraLink, JiraSyncLog
 )
 from .services import sync_jira_organization
 
