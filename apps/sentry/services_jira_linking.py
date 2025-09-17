@@ -125,8 +125,17 @@ class SentryJiraLinkingService:
                     jira_issue = JiraIssue.objects.filter(jira_key=ticket_key).first()
                     
                     if not jira_issue:
-                        results['errors'].append(f"JIRA ticket {ticket_key} not found in database - may need to sync JIRA first")
-                        continue
+                        # Try to fetch and create the missing JIRA ticket
+                        fetch_result = self._fetch_and_create_missing_jira_ticket(
+                            ticket_key, jira_ticket_info, sentry_issue
+                        )
+                        
+                        if fetch_result['success']:
+                            jira_issue = fetch_result['jira_issue']
+                            results['errors'].append(f"✅ Auto-fetched missing JIRA ticket {ticket_key}")
+                        else:
+                            results['errors'].append(f"❌ JIRA ticket {ticket_key} not found and could not be fetched: {fetch_result['error']}")
+                            continue
                     
                     # Check if link already exists
                     from apps.jira.models import SentryJiraLink
@@ -279,3 +288,143 @@ class SentryJiraLinkingService:
                 logger.error(f"Error checking {issue}: {str(e)}")
         
         return linkable_issues
+    
+    def _fetch_and_create_missing_jira_ticket(self, ticket_key: str, jira_ticket_info: Dict, 
+                                            sentry_issue) -> Dict:
+        """Fetch and create a missing JIRA ticket from the JIRA API"""
+        from apps.jira.models import JiraOrganization, JiraProject, JiraIssue
+        from apps.jira.services import JiraSyncService
+        from apps.jira.client import JiraAPIClient
+        
+        result = {
+            'success': False,
+            'jira_issue': None,
+            'error': None,
+            'created_project': False
+        }
+        
+        try:
+            # Extract project key from ticket key (e.g., 'CAIMS2-4389' -> 'CAIMS2')
+            project_key = ticket_key.split('-')[0]
+            
+            # Try to find the JIRA organization that might have this ticket
+            base_url = jira_ticket_info.get('base_url')
+            jira_org = None
+            
+            if base_url:
+                # Try to find organization by base URL
+                jira_org = JiraOrganization.objects.filter(
+                    base_url__icontains=base_url.replace('https://', '').replace('http://', '')
+                ).first()
+            
+            if not jira_org:
+                # Try to find any organization that might have this project
+                existing_project = JiraProject.objects.filter(jira_key=project_key).first()
+                if existing_project:
+                    jira_org = existing_project.jira_organization
+            
+            if not jira_org:
+                # Use the first available JIRA organization as fallback
+                jira_org = JiraOrganization.objects.filter(sync_enabled=True).first()
+            
+            if not jira_org:
+                result['error'] = "No JIRA organization configured"
+                return result
+            
+            # Create JIRA client
+            client = JiraAPIClient(jira_org.base_url, jira_org.username, jira_org.api_token)
+            
+            # Test connection first
+            success, message = client.test_connection()
+            if not success:
+                result['error'] = f"JIRA connection failed: {message}"
+                return result
+            
+            # Try to fetch the specific issue
+            success, issue_data = client.get_issue(ticket_key)
+            if not success:
+                result['error'] = f"Could not fetch JIRA issue {ticket_key}: {issue_data.get('message', 'Unknown error')}"
+                return result
+            
+            # Check if we need to create the project first
+            jira_project = JiraProject.objects.filter(
+                jira_organization=jira_org,
+                jira_key=project_key
+            ).first()
+            
+            if not jira_project:
+                # Fetch project details and create it
+                project_result = self._fetch_and_create_jira_project(client, jira_org, project_key)
+                if project_result['success']:
+                    jira_project = project_result['jira_project']
+                    result['created_project'] = True
+                else:
+                    result['error'] = f"Could not create JIRA project {project_key}: {project_result['error']}"
+                    return result
+            
+            # Create the JIRA issue using the sync service
+            sync_service = JiraSyncService(jira_org)
+            created_issue = sync_service._sync_single_issue(jira_project, issue_data)
+            
+            if created_issue:
+                # Get the created issue
+                jira_issue = JiraIssue.objects.filter(
+                    jira_project=jira_project,
+                    jira_key=ticket_key
+                ).first()
+                
+                if jira_issue:
+                    result['success'] = True
+                    result['jira_issue'] = jira_issue
+                    logger.info(f"Successfully fetched and created JIRA issue {ticket_key}")
+                else:
+                    result['error'] = "Issue created but not found in database"
+            else:
+                result['error'] = "Failed to create JIRA issue in database"
+            
+        except Exception as e:
+            result['error'] = str(e)
+            logger.error(f"Error fetching JIRA ticket {ticket_key}: {str(e)}")
+        
+        return result
+    
+    def _fetch_and_create_jira_project(self, client: 'JiraAPIClient', jira_org, project_key: str) -> Dict:
+        """Fetch and create a missing JIRA project"""
+        from apps.jira.models import JiraProject
+        
+        result = {
+            'success': False,
+            'jira_project': None,
+            'error': None
+        }
+        
+        try:
+            # Try to get project details
+            success, project_data = client.get_project(project_key)
+            if not success:
+                result['error'] = f"Could not fetch project details: {project_data.get('message', 'Unknown error')}"
+                return result
+            
+            # Create the project
+            jira_project = JiraProject.objects.create(
+                jira_organization=jira_org,
+                jira_key=project_data.get('key', project_key),
+                name=project_data.get('name', project_key),
+                description=project_data.get('description', ''),
+                project_type=project_data.get('projectTypeKey', 'software'),
+                lead_account_id=project_data.get('lead', {}).get('accountId', ''),
+                lead_display_name=project_data.get('lead', {}).get('displayName', ''),
+                # Set sync enabled for this auto-discovered project
+                sync_enabled=True,
+                sync_issues=True
+            )
+            
+            result['success'] = True
+            result['jira_project'] = jira_project
+            logger.info(f"Successfully created JIRA project {project_key}")
+            
+        except Exception as e:
+            result['error'] = str(e)
+            logger.error(f"Error creating JIRA project {project_key}: {str(e)}")
+        
+        return result
