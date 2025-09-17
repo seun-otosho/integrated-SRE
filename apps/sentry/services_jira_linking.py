@@ -206,7 +206,7 @@ class SentryJiraLinkingService:
                 if result['errors']:
                     for error in result['errors']:
                         summary['errors'].append(f"{issue.title[:50]}: {error}")
-                
+                # print(f"Processed \n\t{issue}: \n\t\t{result}\n","_"*88)
             except Exception as e:
                 summary['errors'].append(f"Failed to process {issue}: {str(e)}")
         
