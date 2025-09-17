@@ -35,6 +35,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Skip JIRA linking for issues that already have links (faster processing)',
         )
+        parser.add_argument(
+            '--fuzzy-match',
+            action='store_true',
+            help='Also run fuzzy matching to find implicit JIRA connections',
+        )
 
     def handle(self, *args, **options):
         org_slug = options.get('org')
@@ -50,6 +55,10 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('JIRA LINKING ENABLED - Will auto-link issues to JIRA tickets'))
             if skip_existing_links:
                 self.stdout.write(self.style.SUCCESS('SKIP-EXISTING-LINKS - Will skip issues with existing JIRA links'))
+        
+        fuzzy_match = options.get('fuzzy_match', False)
+        if fuzzy_match:
+            self.stdout.write(self.style.SUCCESS('FUZZY MATCHING ENABLED - Will discover implicit JIRA connections'))
 
         if org_slug:
             # Sync specific organization
@@ -91,7 +100,7 @@ class Command(BaseCommand):
                         
                         # Auto-link JIRA tickets if requested
                         if link_jira and not dry_run:
-                            self._link_jira_tickets_for_organization(org, skip_existing_links)
+                            self._link_jira_tickets_for_organization(org, skip_existing_links, fuzzy_match)
                     else:
                         self.stdout.write(
                             self.style.ERROR(
@@ -173,9 +182,9 @@ class Command(BaseCommand):
                 
                 successful_orgs = [log.organization for log in sync_logs if log.status == 'success']
                 for org in successful_orgs:
-                    self._link_jira_tickets_for_organization(org, skip_existing_links)
+                    self._link_jira_tickets_for_organization(org, skip_existing_links, fuzzy_match)
     
-    def _link_jira_tickets_for_organization(self, organization, skip_existing_links):
+    def _link_jira_tickets_for_organization(self, organization, skip_existing_links, fuzzy_match=False):
         """Link JIRA tickets for a specific organization after sync"""
         try:
             from apps.sentry.services_jira_linking import SentryJiraLinkingService
@@ -220,6 +229,45 @@ class Command(BaseCommand):
             
             if summary.get('issues_skipped', 0) > 0:
                 self.stdout.write(f'   ⏭️ Skipped {summary["issues_skipped"]} already-linked issues')
+            
+            # Run fuzzy matching if requested
+            if fuzzy_match:
+                self.stdout.write(f'🔍 Running fuzzy matching for {organization.name}...')
+                try:
+                    from apps.sentry.services_jira_fuzzy_matching import SentryJiraFuzzyMatchingService
+                    
+                    fuzzy_service = SentryJiraFuzzyMatchingService()
+                    
+                    # Run fuzzy matching with conservative settings for sync integration
+                    fuzzy_results = fuzzy_service.scan_and_suggest_matches(
+                        organization=organization,
+                        limit=50,  # Limit for sync integration
+                        similarity_threshold=0.8  # Higher threshold for auto-sync
+                    )
+                    
+                    if fuzzy_results['suggestions']:
+                        # Auto-create high confidence fuzzy matches
+                        link_results = fuzzy_service.create_links_from_suggestions(
+                            fuzzy_results['suggestions'],
+                            auto_create_high_confidence=True,
+                            min_confidence_score=0.85
+                        )
+                        
+                        if link_results['links_created'] > 0:
+                            self.stdout.write(
+                                self.style.SUCCESS(
+                                    f'   🎯 Fuzzy matching created {link_results["links_created"]} additional links'
+                                )
+                            )
+                        else:
+                            self.stdout.write(f'   📝 Fuzzy matching found potential matches but no auto-links created')
+                    else:
+                        self.stdout.write(f'   📝 No fuzzy matches found above threshold')
+                        
+                except ImportError:
+                    self.stdout.write(f'   ⚠️ Fuzzy matching not available (service not found)')
+                except Exception as e:
+                    self.stdout.write(self.style.WARNING(f'   ⚠️ Fuzzy matching failed: {str(e)}'))
                 
         except ImportError:
             self.stdout.write(
