@@ -16,13 +16,13 @@ class Command(BaseCommand):
         parser.add_argument(
             '--limit',
             type=int,
-            default=50,
+            default=100,
             help='Maximum number of Sentry issues to scan (default: 50)',
         )
         parser.add_argument(
             '--similarity',
             type=float,
-            default=0.7,
+            default=0.8,
             help='Minimum similarity threshold (0.0-1.0, default: 0.7)',
         )
         parser.add_argument(

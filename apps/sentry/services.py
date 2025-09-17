@@ -140,6 +140,15 @@ class SentrySyncService:
         if success:
             for issue_data in issues_data:
                 try:
+                    # Extract environment from tags
+                    environment = None
+                    release = None
+                    for tag in issue_data.get('tags', []):
+                        if tag.get('key') == 'environment':
+                            environment = tag.get('value')
+                        elif tag.get('key') == 'release':
+                            release = tag.get('value')
+                    
                     issue, created = SentryIssue.objects.update_or_create(
                         project=project,
                         sentry_id=issue_data['id'],
@@ -150,6 +159,10 @@ class SentrySyncService:
                             'status': issue_data.get('status', 'unresolved'),
                             'level': issue_data.get('level', 'error'),
                             'type': issue_data.get('type'),
+                            'environment': environment,
+                            'release': release,
+                            'platform': issue_data.get('platform'),
+                            'logger': issue_data.get('logger'),
                             'metadata': issue_data.get('metadata', {}),
                             'count': issue_data.get('count', 0),
                             'user_count': issue_data.get('userCount', 0),

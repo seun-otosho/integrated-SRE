@@ -275,10 +275,10 @@ class SentryProjectAdmin(admin.ModelAdmin):
 @admin.register(SentryIssue)
 class SentryIssueAdmin(admin.ModelAdmin):
     list_display = [
-        'title', 'project', 'status', 'level', 'count', 'user_count', 'quality_context', 'last_seen','sentry_link'
+        'title_short', 'project', 'environment', 'status', 'level', 'count', 'user_count', 'quality_context', 'last_seen','sentry_link'
     ]
-    list_filter = ['status', 'level', 'last_seen', 'first_seen', 'project', 'project__organization']
-    search_fields = ['title', 'culprit', 'sentry_id']
+    list_filter = ['environment', 'release', 'platform', 'status', 'level', 'last_seen', 'first_seen', 'project', 'project__organization']
+    search_fields = ['title', 'culprit', 'sentry_id', 'environment', 'release', 'logger']
     readonly_fields = [
         'sentry_id', 'permalink', 'first_seen', 'last_seen', 'created_at', 'updated_at', 'title', 'project', 'status',
         'level', 'count', 'user_count', 'level', 'type', 'metadata', 'culprit', 
@@ -303,9 +303,10 @@ class SentryIssueAdmin(admin.ModelAdmin):
     
     actions = ['mark_resolved', 'mark_ignored', 'bulk_assign_to_product', 'auto_link_jira_tickets']
     
-    def title(self, obj):
+    def title_short(self, obj):
         title = obj.title[:80] + '...' if len(obj.title) > 80 else obj.title
         return title
+    title_short.short_description = 'Title'
 
     def sentry_link(self, obj):
         # title = obj.title[:80] + '...' if len(obj.title) > 80 else obj.title

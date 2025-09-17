@@ -97,6 +97,10 @@ class SentryIssue(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.UNRESOLVED)
     level = models.CharField(max_length=20, choices=Level.choices, default=Level.ERROR)
     type = models.CharField(max_length=100, blank=True, null=True)
+    environment = models.CharField(max_length=100, blank=True, null=True, help_text="Environment where this issue occurs (prod, staging, dev, etc.)")
+    release = models.CharField(max_length=200, blank=True, null=True, help_text="Release version when this issue occurred")
+    platform = models.CharField(max_length=50, blank=True, null=True, help_text="Platform/technology (javascript, python, etc.)")
+    logger = models.CharField(max_length=200, blank=True, null=True, help_text="Logger name that generated this issue")
     metadata = models.JSONField(default=dict, blank=True)
     
     # Statistics
