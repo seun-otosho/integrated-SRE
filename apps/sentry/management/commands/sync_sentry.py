@@ -25,14 +25,31 @@ class Command(BaseCommand):
             action='store_true',
             help='Show what would be synced without actually syncing',
         )
+        parser.add_argument(
+            '--link-jira',
+            action='store_true',
+            help='Automatically link synced issues to JIRA tickets based on annotations',
+        )
+        parser.add_argument(
+            '--skip-existing-links',
+            action='store_true',
+            help='Skip JIRA linking for issues that already have links (faster processing)',
+        )
 
     def handle(self, *args, **options):
         org_slug = options.get('org')
         force = options.get('force', False)
         dry_run = options.get('dry_run', False)
+        link_jira = options.get('link_jira', False)
+        skip_existing_links = options.get('skip_existing_links', False)
 
         if dry_run:
             self.stdout.write(self.style.WARNING('DRY RUN MODE - No actual syncing will occur'))
+        
+        if link_jira:
+            self.stdout.write(self.style.SUCCESS('JIRA LINKING ENABLED - Will auto-link issues to JIRA tickets'))
+            if skip_existing_links:
+                self.stdout.write(self.style.SUCCESS('SKIP-EXISTING-LINKS - Will skip issues with existing JIRA links'))
 
         if org_slug:
             # Sync specific organization
@@ -71,6 +88,10 @@ class Command(BaseCommand):
                                 f'({sync_log.duration_seconds:.1f}s)'
                             )
                         )
+                        
+                        # Auto-link JIRA tickets if requested
+                        if link_jira and not dry_run:
+                            self._link_jira_tickets_for_organization(org, skip_existing_links)
                     else:
                         self.stdout.write(
                             self.style.ERROR(
@@ -142,4 +163,72 @@ class Command(BaseCommand):
                 self.style.SUCCESS(
                     f'\nSync completed: {success_count} successful, {failed_count} failed'
                 )
+            )
+            
+            # Auto-link JIRA tickets for successful syncs if requested
+            if link_jira and not dry_run and success_count > 0:
+                self.stdout.write('\n' + '='*60)
+                self.stdout.write('JIRA AUTO-LINKING PHASE')
+                self.stdout.write('='*60)
+                
+                successful_orgs = [log.organization for log in sync_logs if log.status == 'success']
+                for org in successful_orgs:
+                    self._link_jira_tickets_for_organization(org, skip_existing_links)
+    
+    def _link_jira_tickets_for_organization(self, organization, skip_existing_links):
+        """Link JIRA tickets for a specific organization after sync"""
+        try:
+            from apps.sentry.services_jira_linking import SentryJiraLinkingService
+            
+            self.stdout.write(f'🔗 Linking JIRA tickets for {organization.name}...')
+            
+            service = SentryJiraLinkingService()
+            
+            # Link issues for this organization with reasonable limits
+            summary = service.scan_and_link_all_sentry_issues(
+                organization=organization, 
+                limit=100,  # Process up to 100 issues per sync
+                skip_linked=skip_existing_links
+            )
+            
+            # Report results
+            if summary['total_links_created'] > 0:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'   ✅ Created {summary["total_links_created"]} JIRA links '
+                        f'from {summary["issues_with_jira_links"]} issues'
+                    )
+                )
+            elif summary['issues_with_jira_links'] > 0:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f'   ⚠️ Found {summary["issues_with_jira_links"]} issues with annotations '
+                        f'but no new links created (may already exist)'
+                    )
+                )
+            else:
+                self.stdout.write(f'   📝 No JIRA annotations found in recent issues')
+            
+            # Report any critical errors (but don't show all the "no annotations" errors)
+            critical_errors = [e for e in summary['errors'] if 'No JIRA tickets found' not in e]
+            if critical_errors:
+                for error in critical_errors[:3]:  # Show first 3 critical errors
+                    self.stdout.write(self.style.WARNING(f'   ⚠️ {error}'))
+                
+                if len(critical_errors) > 3:
+                    self.stdout.write(f'   ... and {len(critical_errors) - 3} more issues')
+            
+            if summary.get('issues_skipped', 0) > 0:
+                self.stdout.write(f'   ⏭️ Skipped {summary["issues_skipped"]} already-linked issues')
+                
+        except ImportError:
+            self.stdout.write(
+                self.style.WARNING(
+                    f'   ⚠️ JIRA linking not available for {organization.name} '
+                    f'(JIRA app not installed or services not available)'
+                )
+            )
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f'   ❌ JIRA linking failed for {organization.name}: {str(e)}')
             )
