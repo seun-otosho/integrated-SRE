@@ -275,7 +275,7 @@ class SentryProjectAdmin(admin.ModelAdmin):
 @admin.register(SentryIssue)
 class SentryIssueAdmin(admin.ModelAdmin):
     list_display = ['title_short', 'project', 'status', 'level', 'count', 'user_count', 'last_seen']
-    list_filter = ['status', 'level', 'project__organization', 'project', 'first_seen']
+    list_filter = ['status', 'level', 'last_seen', 'first_seen', 'project', 'project__organization']
     search_fields = ['title', 'culprit', 'sentry_id']
     readonly_fields = ['sentry_id', 'permalink', 'first_seen', 'created_at', 'updated_at']
     date_hierarchy = 'last_seen'

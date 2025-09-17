@@ -7,7 +7,7 @@ from .models import Product
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['name', 'parent', 'owner_team', 'priority', 'is_active', 'sentry_projects_count', 'total_issues_count', 'unresolved_issues_count', 'hierarchy_path']
+    list_display = ['name', 'parent', 'owner_team', 'priority', 'is_active', 'sentry_projects_count', 'jira_projects_count', 'total_issues_count', 'unresolved_issues_count', 'hierarchy_path']
     list_filter = ['parent', 'priority', 'is_active', 'owner_team', 'created_at']
     search_fields = ['name', 'parent__name', 'description', 'owner_team']
     readonly_fields = ['created_at', 'updated_at']
@@ -29,6 +29,7 @@ class ProductAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('parent').annotate(
             projects_count=Count('sentryproject', distinct=True),
+            jira_projects_count=Count('jira_projects', distinct=True),
             total_issues=Count('sentryproject__issues', distinct=True),
             unresolved_issues=Count('sentryproject__issues', 
                                   filter=Q(sentryproject__issues__status='unresolved'), 
@@ -42,6 +43,18 @@ class ProductAdmin(admin.ModelAdmin):
             return format_html('<a href="{}">{} projects</a>', url, count)
         return '0 projects'
     sentry_projects_count.short_description = 'Sentry Projects'
+    
+    def jira_projects_count(self, obj):
+        count = obj.jira_projects_count if hasattr(obj, 'jira_projects_count') else obj.jira_projects.count()
+        if count > 0:
+            # Check if JIRA app is installed
+            try:
+                url = reverse('admin:jira_jiraproject_changelist') + f'?product__id__exact={obj.id}'
+                return format_html('<a href=\"{}\">{} projects</a>', url, count)
+            except:
+                return f'{count} projects'
+        return '0 projects'
+    jira_projects_count.short_description = 'JIRA Projects'
     
     def total_issues_count(self, obj):
         count = obj.total_issues if hasattr(obj, 'total_issues') else 0
