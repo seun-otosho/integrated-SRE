@@ -251,7 +251,8 @@ class SonarCloudProjectAdmin(admin.ModelAdmin):
     def coverage_display(self, obj):
         if obj.coverage is not None:
             color = 'green' if obj.coverage >= 80 else 'orange' if obj.coverage >= 60 else 'red'
-            return format_html('<span style="color: {};">{:.1f}%</span>', color, obj.coverage)
+            coverage_str = f"{obj.coverage:.1f}%"
+            return format_html('<span style="color: {};">{}</span>', color, coverage_str)
         return '-'
     coverage_display.short_description = 'Coverage'
     
