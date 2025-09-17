@@ -29,12 +29,25 @@ class Command(BaseCommand):
             action='store_true',
             help='Update existing links',
         )
+        parser.add_argument(
+            '--skip-linked',
+            action='store_true',
+            help='Skip issues that already have JIRA links (recommended for large batches)',
+        )
+        parser.add_argument(
+            '--offset',
+            type=int,
+            default=0,
+            help='Skip the first N issues (useful for resuming large batches)',
+        )
 
     def handle(self, *args, **options):
         org_slug = options.get('org')
         limit = options.get('limit', 100)
         preview = options.get('preview', False)
         force = options.get('force', False)
+        skip_linked = options.get('skip_linked', False)
+        offset = options.get('offset', 0)
 
         service = SentryJiraLinkingService()
 
@@ -48,16 +61,22 @@ class Command(BaseCommand):
                 raise CommandError(f'Organization "{org_slug}" does not exist')
 
         if preview:
-            self._show_preview(service, organization, limit)
+            self._show_preview(service, organization, limit, skip_linked, offset)
         else:
-            self._process_links(service, organization, limit, force)
+            self._process_links(service, organization, limit, force, skip_linked, offset)
 
-    def _show_preview(self, service, organization, limit):
+    def _show_preview(self, service, organization, limit, skip_linked, offset):
         """Show preview of issues that can be linked"""
         self.stdout.write(self.style.WARNING('PREVIEW MODE - No links will be created'))
+        
+        if skip_linked:
+            self.stdout.write(self.style.SUCCESS('SKIP-LINKED MODE - Will skip issues with existing JIRA links'))
+        if offset > 0:
+            self.stdout.write(f'OFFSET MODE - Starting from issue #{offset + 1}')
+            
         self.stdout.write(f'Checking up to {limit} issues for JIRA annotations...\n')
 
-        linkable_issues = service.get_linkable_issues_preview(organization, limit)
+        linkable_issues = service.get_linkable_issues_preview(organization, limit, skip_linked, offset)
 
         if not linkable_issues:
             self.stdout.write(self.style.WARNING('No issues with JIRA annotations found.'))
@@ -82,14 +101,18 @@ class Command(BaseCommand):
             f'\nPreview complete. Run without --preview to create {len(linkable_issues)} potential links.'
         ))
 
-    def _process_links(self, service, organization, limit, force):
+    def _process_links(self, service, organization, limit, force, skip_linked, offset):
         """Process and create links"""
         self.stdout.write(f'Processing up to {limit} Sentry issues...')
         
         if force:
             self.stdout.write(self.style.WARNING('FORCE MODE - Will update existing links'))
+        if skip_linked:
+            self.stdout.write(self.style.SUCCESS('SKIP-LINKED MODE - Will skip issues with existing JIRA links'))
+        if offset > 0:
+            self.stdout.write(f'OFFSET MODE - Starting from issue #{offset + 1}')
 
-        summary = service.scan_and_link_all_sentry_issues(organization, limit)
+        summary = service.scan_and_link_all_sentry_issues(organization, limit, skip_linked, offset)
 
         # Display results
         self.stdout.write('\n' + '='*60)
@@ -97,8 +120,10 @@ class Command(BaseCommand):
         self.stdout.write('='*60)
         
         self.stdout.write(f'Issues processed: {summary["issues_processed"]}')
+        if summary.get('issues_skipped', 0) > 0:
+            self.stdout.write(f'Issues skipped (already linked): {summary["issues_skipped"]}')
         self.stdout.write(f'Issues with JIRA annotations: {summary["issues_with_jira_links"]}')
-        self.stdout.write(f'Total links created: {summary["total_links_created"]}')
+        self.stdout.write(f'Total links created: {summary["total_links_created"]}');
         
         if summary['details']:
             self.stdout.write('\nSUCCESSFUL LINKS:')

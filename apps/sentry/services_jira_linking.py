@@ -163,12 +163,14 @@ class SentryJiraLinkingService:
         
         return results
     
-    def scan_and_link_all_sentry_issues(self, organization=None, limit: int = None) -> Dict:
+    def scan_and_link_all_sentry_issues(self, organization=None, limit: int = None, 
+                                       skip_linked: bool = False, offset: int = 0) -> Dict:
         """Scan all Sentry issues and automatically link them to JIRA tickets"""
         from apps.sentry.models import SentryIssue
         
         summary = {
             'issues_processed': 0,
+            'issues_skipped': 0,
             'issues_with_jira_links': 0,
             'total_links_created': 0,
             'errors': [],
@@ -181,11 +183,29 @@ class SentryJiraLinkingService:
         if organization:
             queryset = queryset.filter(project__organization=organization)
         
+        # Filter out issues that already have JIRA links if requested
+        if skip_linked:
+            from apps.jira.models import SentryJiraLink
+            linked_issue_ids = SentryJiraLink.objects.values_list('sentry_issue_id', flat=True)
+            queryset = queryset.exclude(id__in=linked_issue_ids)
+        
+        # Apply offset
+        if offset > 0:
+            queryset = queryset[offset:]
+        
+        # Apply limit after offset
         if limit:
             queryset = queryset[:limit]
         
         for issue in queryset:
             try:
+                # Double-check for existing links if skip_linked is enabled
+                if skip_linked:
+                    from apps.jira.models import SentryJiraLink
+                    if SentryJiraLink.objects.filter(sentry_issue=issue).exists():
+                        summary['issues_skipped'] += 1
+                        continue
+                
                 summary['issues_processed'] += 1
                 
                 # Try to link this issue
@@ -212,7 +232,8 @@ class SentryJiraLinkingService:
         
         return summary
     
-    def get_linkable_issues_preview(self, organization=None, limit: int = 10) -> List[Dict]:
+    def get_linkable_issues_preview(self, organization=None, limit: int = 10, 
+                                   skip_linked: bool = False, offset: int = 0) -> List[Dict]:
         """Preview which issues have JIRA annotations and could be linked"""
         from apps.sentry.models import SentryIssue
         from apps.sentry.client import SentryAPIClient
@@ -225,6 +246,17 @@ class SentryJiraLinkingService:
         if organization:
             queryset = queryset.filter(project__organization=organization)
         
+        # Filter out issues that already have JIRA links if requested
+        if skip_linked:
+            from apps.jira.models import SentryJiraLink
+            linked_issue_ids = SentryJiraLink.objects.values_list('sentry_issue_id', flat=True)
+            queryset = queryset.exclude(id__in=linked_issue_ids)
+        
+        # Apply offset
+        if offset > 0:
+            queryset = queryset[offset:]
+        
+        # Apply limit after offset
         for issue in queryset[:limit]:
             try:
                 # Get annotations from Sentry API
