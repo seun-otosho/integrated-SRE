@@ -274,10 +274,15 @@ class SentryProjectAdmin(admin.ModelAdmin):
 
 @admin.register(SentryIssue)
 class SentryIssueAdmin(admin.ModelAdmin):
-    list_display = ['title_short', 'project', 'status', 'level', 'count', 'user_count', 'quality_context', 'last_seen']
+    list_display = [
+        'title', 'project', 'status', 'level', 'count', 'user_count', 'quality_context', 'last_seen','sentry_link'
+    ]
     list_filter = ['status', 'level', 'last_seen', 'first_seen', 'project', 'project__organization']
     search_fields = ['title', 'culprit', 'sentry_id']
-    readonly_fields = ['sentry_id', 'permalink', 'first_seen', 'created_at', 'updated_at']
+    readonly_fields = [
+        'sentry_id', 'permalink', 'first_seen', 'last_seen', 'created_at', 'updated_at', 'title', 'project', 'status',
+        'level', 'count', 'user_count', 'level', 'type', 'metadata', 'culprit', 
+    ]
     date_hierarchy = 'last_seen'
     
     fieldsets = (
@@ -296,13 +301,17 @@ class SentryIssueAdmin(admin.ModelAdmin):
         }),
     )
     
-    actions = ['mark_resolved', 'mark_ignored', 'bulk_assign_to_product']
+    actions = ['mark_resolved', 'mark_ignored', 'bulk_assign_to_product', 'auto_link_jira_tickets']
     
-    def title_short(self, obj):
+    def title(self, obj):
         title = obj.title[:80] + '...' if len(obj.title) > 80 else obj.title
+        return title
+
+    def sentry_link(self, obj):
+        # title = obj.title[:80] + '...' if len(obj.title) > 80 else obj.title
         url = obj.permalink if obj.permalink else '#'
-        return format_html('<a href="{}" target="_blank">{}</a>', url, title)
-    title_short.short_description = 'Title'
+        return format_html('<a href="{}" target="_blank">open in sentry</a>', url)
+    sentry_link.short_description = 'Title'
     
     def mark_resolved(self, request, queryset):
         count = queryset.update(status=SentryIssue.Status.RESOLVED)
@@ -383,6 +392,63 @@ class SentryIssueAdmin(admin.ModelAdmin):
             return format_html('<span style="color: gray;">-</span>')
     
     quality_context.short_description = 'Quality'
+    
+    def auto_link_jira_tickets(self, request, queryset):
+        """Automatically link selected Sentry issues to JIRA tickets based on annotations"""
+        try:
+            from apps.sentry.services_jira_linking import SentryJiraLinkingService
+            service = SentryJiraLinkingService()
+            
+            total_links = 0
+            issues_processed = 0
+            errors = []
+            
+            for issue in queryset:
+                try:
+                    result = service.link_sentry_issue_to_jira_tickets(issue)
+                    issues_processed += 1
+                    total_links += result['links_created']
+                    
+                    if result['errors']:
+                        errors.extend([f"{issue.title[:30]}: {err}" for err in result['errors']])
+                
+                except Exception as e:
+                    errors.append(f"{issue.title[:30]}: {str(e)}")
+            
+            # Report results
+            if total_links > 0:
+                self.message_user(
+                    request, 
+                    f'Successfully created {total_links} automatic JIRA links from {issues_processed} issues.'
+                )
+            else:
+                self.message_user(
+                    request, 
+                    f'No JIRA links created. Processed {issues_processed} issues.',
+                    level='WARNING'
+                )
+            
+            # Report errors
+            for error in errors[:5]:  # Show first 5 errors
+                self.message_user(request, error, level='WARNING')
+            
+            if len(errors) > 5:
+                self.message_user(
+                    request, 
+                    f'... and {len(errors) - 5} more errors. Check logs for details.',
+                    level='WARNING'
+                )
+                
+        except ImportError:
+            self.message_user(
+                request, 
+                'JIRA integration not available. Make sure JIRA app is installed.',
+                level='ERROR'
+            )
+        except Exception as e:
+            self.message_user(request, f'Error during auto-linking: {str(e)}', level='ERROR')
+    
+    auto_link_jira_tickets.short_description = 'Auto-link JIRA tickets from annotations'
 
 
 @admin.register(SentryEvent)
