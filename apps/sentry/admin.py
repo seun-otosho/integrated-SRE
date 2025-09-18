@@ -275,7 +275,8 @@ class SentryProjectAdmin(admin.ModelAdmin):
 @admin.register(SentryIssue)
 class SentryIssueAdmin(admin.ModelAdmin):
     list_display = [
-        'title_short', 'project', 'environment', 'status', 'level', 'count', 'user_count', 'quality_context', 'last_seen','sentry_link'
+        'title_short', 'product', 'env', 'status', 'level', 'count', 'user_count', 'quality_context', 'last_seen',
+        'first_seen', 'sentry_link'
     ]
     list_filter = ['environment', 'release', 'platform', 'status', 'level', 'last_seen', 'first_seen', 'project', 'project__organization']
     search_fields = ['title', 'culprit', 'sentry_id', 'environment', 'release', 'logger']
@@ -307,6 +308,20 @@ class SentryIssueAdmin(admin.ModelAdmin):
         title = obj.title[:80] + '...' if len(obj.title) > 80 else obj.title
         return title
     title_short.short_description = 'Title'
+
+    def product(self, obj):
+        # title = obj.title[:80] + '...' if len(obj.title) > 80 else obj.title
+        return obj.project.product
+    product.short_description = 'Product'
+
+    def env(self, obj):
+        # title = obj.title[:80] + '...' if len(obj.title) > 80 else obj.title
+        if obj.environment:
+            return "Prod" if "prod" in obj.environment.lower() else "Staging" if (
+                "stg" in obj.environment or "stag" in obj.environment
+        ) else "dev" if "dev" in obj.environment.lower() else "other"
+        return "--"
+    env.short_description = 'env'
 
     def sentry_link(self, obj):
         # title = obj.title[:80] + '...' if len(obj.title) > 80 else obj.title

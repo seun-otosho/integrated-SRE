@@ -140,14 +140,40 @@ class SentrySyncService:
         if success:
             for issue_data in issues_data:
                 try:
-                    # Extract environment from tags
+                    # Extract environment from tags (try issue level first)
                     environment = None
                     release = None
+                    platform = issue_data.get('platform')
+                    logger = issue_data.get('logger')
+                    
+                    # Check issue-level tags first
                     for tag in issue_data.get('tags', []):
-                        if tag.get('key') == 'environment':
+                        if tag.get('key') == 'environment' and tag.get('value'):
                             environment = tag.get('value')
-                        elif tag.get('key') == 'release':
+                        elif tag.get('key') == 'release' and tag.get('value'):
                             release = tag.get('value')
+                    
+                    # If no environment found at issue level, get from recent events
+                    if not environment:
+                        try:
+                            # Get latest events for this issue to extract environment
+                            success, events_data = self.client.get_issue_events(issue_data['id'], limit=5)
+                            if success and events_data:
+                                for event_data in events_data:
+                                    event_tags = {tag['key']: tag['value'] for tag in event_data.get('tags', [])}
+                                    if event_tags.get('environment'):
+                                        environment = event_tags.get('environment')
+                                        break  # Use first non-empty environment found
+                                    if not release and event_tags.get('release'):
+                                        release = event_tags.get('release')
+                        except Exception as e:
+                            logger.debug(f"Could not get events for environment extraction: {str(e)}")
+                    
+                    # Extract release from firstRelease/lastRelease if not found in tags
+                    if not release:
+                        first_release = issue_data.get('firstRelease') or issue_data.get('lastRelease')
+                        if first_release and isinstance(first_release, dict):
+                            release = first_release.get('version') or first_release.get('shortVersion')
                     
                     issue, created = SentryIssue.objects.update_or_create(
                         project=project,
@@ -161,8 +187,8 @@ class SentrySyncService:
                             'type': issue_data.get('type'),
                             'environment': environment,
                             'release': release,
-                            'platform': issue_data.get('platform'),
-                            'logger': issue_data.get('logger'),
+                            'platform': platform,
+                            'logger': logger,
                             'metadata': issue_data.get('metadata', {}),
                             'count': issue_data.get('count', 0),
                             'user_count': issue_data.get('userCount', 0),

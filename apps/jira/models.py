@@ -52,12 +52,12 @@ class JiraProject(models.Model):
     """Represents a JIRA project"""
     jira_organization = models.ForeignKey(
         JiraOrganization, 
-        on_delete=models.CASCADE, 
+        models.CASCADE,
         related_name='projects'
     )
     product = models.ForeignKey(
         "products.Product", 
-        on_delete=models.SET_NULL, 
+        models.SET_NULL,
         null=True, 
         blank=True,
         related_name='jira_projects',
@@ -136,10 +136,10 @@ class JiraIssue(models.Model):
         HIGHEST = 'Highest', 'Highest'
         CRITICAL = 'Critical', 'Critical'
     
-    jira_project = models.ForeignKey(JiraProject, on_delete=models.CASCADE, related_name='issues')
+    jira_project = models.ForeignKey(JiraProject, models.CASCADE, related_name='issues')
     sentry_issue = models.ForeignKey(
         "sentry.SentryIssue", 
-        on_delete=models.SET_NULL, 
+        models.SET_NULL,
         null=True, 
         blank=True,
         related_name='jira_issues',
@@ -224,8 +224,8 @@ class JiraIssue(models.Model):
 
 class SentryJiraLink(models.Model):
     """Tracks the relationship between Sentry issues and JIRA tickets"""
-    sentry_issue = models.ForeignKey("sentry.SentryIssue", on_delete=models.CASCADE)
-    jira_issue = models.ForeignKey(JiraIssue, on_delete=models.CASCADE)
+    sentry_issue = models.ForeignKey("sentry.SentryIssue", models.CASCADE, related_name='jira_link')
+    jira_issue = models.ForeignKey(JiraIssue, models.CASCADE)
     
     # Link metadata
     link_type = models.CharField(
@@ -251,7 +251,7 @@ class SentryJiraLink(models.Model):
     # Creation context
     created_by_user = models.ForeignKey(
         "users.User", 
-        on_delete=models.SET_NULL, 
+        models.SET_NULL,
         null=True, 
         blank=True,
         help_text="User who created this link"
@@ -293,7 +293,7 @@ class JiraSyncLog(models.Model):
     
     jira_organization = models.ForeignKey(
         JiraOrganization, 
-        on_delete=models.CASCADE, 
+        models.CASCADE,
         related_name='sync_logs'
     )
     sync_type = models.CharField(max_length=20, choices=SyncType.choices, default=SyncType.FULL_SYNC)
