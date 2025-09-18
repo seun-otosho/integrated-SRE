@@ -8,6 +8,7 @@ from django.db.models import Q
 
 from .models import Dashboard, DashboardWidget
 from .services import DashboardDataService
+from .services_cached import CachedDashboardService
 from apps.products.models import Product
 
 
@@ -29,12 +30,13 @@ def dashboard_list(request):
 
 # @login_required  # Temporarily disabled for testing
 def executive_dashboard(request):
-    """Executive overview dashboard"""
+    """Executive overview dashboard with instant cached loading"""
     product_filter = request.GET.get('product')
     environment_filter = request.GET.get('environment')
     
-    service = DashboardDataService()
-    data = service.get_executive_overview(product_filter, environment_filter)
+    # Use cached service for instant loading
+    cached_service = CachedDashboardService()
+    data, was_generated = cached_service.get_executive_overview(product_filter, environment_filter)
     
     # Get available filters
     products = Product.objects.all().order_by('name')
@@ -61,7 +63,7 @@ def executive_dashboard(request):
 
 # @login_required  # Temporarily disabled for testing
 def product_dashboard(request, product_id=None):
-    """Product health dashboard"""
+    """Product health dashboard with instant cached loading"""
     environment_filter = request.GET.get('environment')
     
     if product_id:
@@ -69,8 +71,9 @@ def product_dashboard(request, product_id=None):
     else:
         product = None
     
-    service = DashboardDataService()
-    data = service.get_product_health_dashboard(product_id, environment_filter)
+    # Use cached service for instant loading
+    cached_service = CachedDashboardService()
+    data, was_generated = cached_service.get_product_health_dashboard(product_id, environment_filter)
     
     # Get available filters
     products = Product.objects.all().order_by('name')
@@ -101,12 +104,13 @@ def product_dashboard(request, product_id=None):
 
 # @login_required  # Temporarily disabled for testing
 def environment_dashboard(request):
-    """Environment status dashboard"""
+    """Environment status dashboard with instant cached loading"""
     environment = request.GET.get('environment', 'production')
     product_filter = request.GET.get('product')
     
-    service = DashboardDataService()
-    data = service.get_environment_dashboard(environment, product_filter)
+    # Use cached service for instant loading
+    cached_service = CachedDashboardService()
+    data, was_generated = cached_service.get_environment_dashboard(environment, product_filter)
     
     # Get available filters
     products = Product.objects.all().order_by('name')

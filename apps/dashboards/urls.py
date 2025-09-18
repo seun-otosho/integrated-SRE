@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import views_async
 
 app_name = 'dashboards'
 
@@ -14,4 +15,8 @@ urlpatterns = [
     
     # API endpoints
     path('api/<str:dashboard_type>/', views.dashboard_api, name='api'),
+    
+    # Async/Loading versions
+    path('executive/async/', views_async.async_executive_dashboard, name='executive_async'),
+    path('performance/', views_async.dashboard_performance_info, name='performance'),
 ]

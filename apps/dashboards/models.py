@@ -98,3 +98,7 @@ class DashboardWidget(models.Model):
     
     def __str__(self):
         return f"{self.dashboard.name} - {self.title}"
+
+
+# Import cache models
+from .models_cache import DashboardSnapshot, DashboardRefreshLog
