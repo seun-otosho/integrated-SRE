@@ -5,6 +5,21 @@
 <div class="dashboard-container">
     <div class="dashboard-header">
         <h1 class="dashboard-title">{{ title }}</h1>
+        
+        <!-- Cache Info Banner -->
+        {% if dashboard_data._cache_info %}
+        <div class="cache-info-banner">
+            <span class="cache-badge">⚡ Instant Loading</span>
+            <span class="cache-details">
+                Data cached {{ dashboard_data._cache_info.age_minutes }} min ago 
+                ({{ dashboard_data._cache_info.generation_time }} gen time)
+            </span>
+            <button type="button" class="refresh-btn" id="refresh-btn" onclick="refreshDashboard()">
+                <i class="fas fa-sync-alt" id="refresh-icon"></i> Refresh
+            </button>
+        </div>
+        {% endif %}
+        
         <div class="dashboard-filters">
             <div class="filter-group">
                 <label class="filter-label">Environment</label>
@@ -187,4 +202,215 @@
         </table>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function refreshDashboard() {
+    const refreshBtn = document.getElementById('refresh-btn');
+    const refreshIcon = document.getElementById('refresh-icon');
+    
+    // Show loading state
+    refreshBtn.disabled = true;
+    refreshIcon.classList.add('fa-spin');
+    refreshBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Refreshing...';
+    
+    fetch('/dashboards/api/refresh/environment/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Dashboard refreshed successfully! Reloading...', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification('Error refreshing dashboard: ' + data.error, 'error');
+            resetRefreshButton();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Network error while refreshing dashboard', 'error');
+        resetRefreshButton();
+    });
+}
+
+function resetRefreshButton() {
+    const refreshBtn = document.getElementById('refresh-btn');
+    const refreshIcon = document.getElementById('refresh-icon');
+    
+    refreshBtn.disabled = false;
+    refreshIcon.classList.remove('fa-spin');
+    refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <span>${message}</span>
+        <button onclick="this.parentElement.remove()">&times;</button>
+    `;
+    
+    document.body.insertBefore(notification, document.body.firstChild);
+    
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Filter handling
+document.addEventListener('DOMContentLoaded', function() {
+    const environmentSelect = document.querySelector('select[name="environment"]');
+    const productSelect = document.querySelector('select[name="product"]');
+    
+    function updateFilters() {
+        const params = new URLSearchParams();
+        
+        if (environmentSelect && environmentSelect.value) {
+            params.set('environment', environmentSelect.value);
+        }
+        if (productSelect && productSelect.value) {
+            params.set('product', productSelect.value);
+        }
+        
+        window.location.search = params.toString();
+    }
+    
+    if (environmentSelect) {
+        environmentSelect.addEventListener('change', updateFilters);
+    }
+    if (productSelect) {
+        productSelect.addEventListener('change', updateFilters);
+    }
+});
+</script>
+
+<style>
+/* Cache Info Banner Styles */
+.cache-info-banner {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border: 1px solid #2196f3;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+}
+
+.cache-badge {
+    background: #2196f3;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.cache-details {
+    color: #1565c0;
+    font-size: 0.9em;
+    flex-grow: 1;
+}
+
+.refresh-btn {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.refresh-btn:hover {
+    background: #45a049;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.refresh-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Notification Styles */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 16px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    animation: slideIn 0.3s ease;
+}
+
+.notification-success {
+    background: linear-gradient(135deg, #4caf50, #45a049);
+}
+
+.notification-error {
+    background: linear-gradient(135deg, #f44336, #d32f2f);
+}
+
+.notification button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    margin-left: auto;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+</style>
 {% endblock %}

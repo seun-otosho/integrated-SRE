@@ -157,6 +157,33 @@ def dashboard_api(request, dashboard_type):
 
 
 # @login_required  # Temporarily disabled for testing
+def refresh_dashboard_api(request, dashboard_type):
+    """API endpoint to refresh dashboard cache in background"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+    
+    cached_service = CachedDashboardService()
+    
+    try:
+        # Refresh specific dashboard type
+        results = cached_service.refresh_dashboard_cache(dashboard_type=dashboard_type, force=True)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Dashboard cache refreshed successfully',
+            'snapshots_refreshed': results['snapshots_refreshed'],
+            'snapshots_failed': results['snapshots_failed'],
+            'details': results['details']
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+# @login_required  # Temporarily disabled for testing
 def custom_dashboard(request, dashboard_id):
     """Display a custom dashboard"""
     dashboard = get_object_or_404(Dashboard, id=dashboard_id)

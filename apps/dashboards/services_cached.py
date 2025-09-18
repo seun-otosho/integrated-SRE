@@ -240,9 +240,11 @@ class CachedDashboardService:
         """Get statistics about dashboard cache performance"""
         from django.db.models import Count, Avg, Max, Min
         
+        from django.db.models import Q
+        
         stats = DashboardSnapshot.objects.aggregate(
             total_snapshots=Count('id'),
-            valid_snapshots=Count('id', filter={'is_valid': True}),
+            valid_snapshots=Count('id', filter=Q(is_valid=True)),
             avg_generation_time=Avg('generation_time'),
             max_generation_time=Max('generation_time'),
             min_generation_time=Min('generation_time'),
