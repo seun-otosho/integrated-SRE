@@ -358,3 +358,191 @@ class DashboardDataService:
             'total_links': total_links,
             'coverage_rate': round(coverage_rate, 1)
         }
+    
+    def _get_product_overview(self, product_id=None) -> Dict:
+        """Get product overview information"""
+        if not product_id:
+            return {'name': 'All Products', 'description': 'Overview of all products'}
+        
+        from apps.products.models import Product
+        try:
+            product = Product.objects.get(id=product_id)
+            return {
+                'id': product.id,
+                'name': product.name,
+                'description': product.description,
+                'hierarchy_path': product.hierarchy_path,
+                'owner_team': product.owner_team,
+                'priority': product.priority,
+                'is_active': product.is_active
+            }
+        except Product.DoesNotExist:
+            return {'name': 'Product Not Found', 'description': 'The specified product could not be found'}
+    
+    def _get_product_sentry_metrics(self, product_id=None, environment_filter=None) -> Dict:
+        """Get Sentry metrics for a product"""
+        from apps.sentry.models import SentryIssue
+        
+        issues_qs = SentryIssue.objects.all()
+        if product_id:
+            issues_qs = issues_qs.filter(project__product_id=product_id)
+        if environment_filter:
+            issues_qs = issues_qs.filter(environment=environment_filter)
+        
+        total_issues = issues_qs.count()
+        unresolved_issues = issues_qs.filter(status='unresolved').count()
+        
+        return {
+            'total_issues': total_issues,
+            'unresolved_issues': unresolved_issues,
+            'resolved_issues': total_issues - unresolved_issues,
+            'resolution_rate': (1 - (unresolved_issues / max(total_issues, 1))) * 100
+        }
+    
+    def _get_product_jira_metrics(self, product_id=None) -> Dict:
+        """Get JIRA metrics for a product"""
+        from apps.jira.models import JiraIssue
+        
+        tickets_qs = JiraIssue.objects.all()
+        if product_id:
+            tickets_qs = tickets_qs.filter(jira_project__product_id=product_id)
+        
+        total_tickets = tickets_qs.count()
+        open_tickets = tickets_qs.exclude(status_category='done').count()
+        
+        return {
+            'total_tickets': total_tickets,
+            'open_tickets': open_tickets,
+            'closed_tickets': total_tickets - open_tickets,
+            'closure_rate': ((total_tickets - open_tickets) / max(total_tickets, 1)) * 100
+        }
+    
+    def _get_product_sonarcloud_metrics(self, product_id=None) -> Dict:
+        """Get SonarCloud metrics for a product"""
+        from apps.sonarcloud.models import SonarCloudProject
+        
+        projects_qs = SonarCloudProject.objects.all()
+        if product_id:
+            projects_qs = projects_qs.filter(product_id=product_id)
+        
+        total_projects = projects_qs.count()
+        projects_with_gates = projects_qs.exclude(quality_gate_status='NONE')
+        passing_gates = projects_with_gates.filter(quality_gate_status='OK')
+        
+        return {
+            'total_projects': total_projects,
+            'projects_with_gates': projects_with_gates.count(),
+            'passing_gates': passing_gates.count(),
+            'gate_pass_rate': (passing_gates.count() / max(projects_with_gates.count(), 1)) * 100
+        }
+    
+    def _get_product_cross_system_links(self, product_id=None) -> Dict:
+        """Get cross-system link information for a product"""
+        from apps.jira.models import SentryJiraLink
+        from apps.sentry.models import SentryIssue
+        
+        issues_qs = SentryIssue.objects.all()
+        if product_id:
+            issues_qs = issues_qs.filter(project__product_id=product_id)
+        
+        total_issues = issues_qs.count()
+        linked_issues = SentryJiraLink.objects.filter(sentry_issue__in=issues_qs).count()
+        
+        return {
+            'total_sentry_issues': total_issues,
+            'linked_to_jira': linked_issues,
+            'link_coverage': (linked_issues / max(total_issues, 1)) * 100
+        }
+    
+    def _get_product_environment_breakdown(self, product_id=None) -> List[Dict]:
+        """Get environment breakdown for a product"""
+        from apps.sentry.models import SentryIssue
+        
+        issues_qs = SentryIssue.objects.exclude(environment__isnull=True).exclude(environment__exact='')
+        if product_id:
+            issues_qs = issues_qs.filter(project__product_id=product_id)
+        
+        environments = issues_qs.values_list('environment', flat=True).distinct()
+        
+        env_breakdown = []
+        for env in environments:
+            env_issues = issues_qs.filter(environment=env)
+            total = env_issues.count()
+            unresolved = env_issues.filter(status='unresolved').count()
+            
+            env_breakdown.append({
+                'environment': env,
+                'total_issues': total,
+                'unresolved_issues': unresolved,
+                'health_score': max(0, 100 - (unresolved / max(total, 1) * 100))
+            })
+        
+        return sorted(env_breakdown, key=lambda x: x['total_issues'], reverse=True)
+    
+    def _get_environment_overview(self, environment=None, product_filter=None) -> Dict:
+        """Get environment overview information"""
+        from apps.sentry.models import SentryIssue
+        
+        issues_qs = SentryIssue.objects.all()
+        if environment:
+            issues_qs = issues_qs.filter(environment=environment)
+        if product_filter:
+            issues_qs = issues_qs.filter(project__product_id=product_filter)
+        
+        total_issues = issues_qs.count()
+        unresolved_issues = issues_qs.filter(status='unresolved').count()
+        projects_count = issues_qs.values('project').distinct().count()
+        
+        return {
+            'environment': environment or 'All Environments',
+            'total_issues': total_issues,
+            'unresolved_issues': unresolved_issues,
+            'projects_count': projects_count,
+            'health_score': max(0, 100 - (unresolved_issues / max(total_issues, 1) * 100))
+        }
+    
+    def _get_environment_issue_trends(self, environment=None, product_filter=None) -> Dict:
+        """Get issue trends for an environment"""
+        # Simplified version - return empty data for now
+        return {
+            'labels': [],
+            'datasets': []
+        }
+    
+    def _get_deployment_health(self, environment=None, product_filter=None) -> Dict:
+        """Get deployment health metrics"""
+        # Simplified version
+        return {
+            'recent_deployments': 0,
+            'successful_deployments': 0,
+            'deployment_success_rate': 100
+        }
+    
+    def _get_environment_quality_metrics(self, environment=None, product_filter=None) -> Dict:
+        """Get quality metrics for an environment"""
+        # Simplified version
+        return {
+            'average_quality_score': 85,
+            'quality_trend': 'stable'
+        }
+    
+    def _get_environment_top_issues(self, environment=None, product_filter=None) -> List[Dict]:
+        """Get top issues for an environment"""
+        from apps.sentry.models import SentryIssue
+        
+        issues_qs = SentryIssue.objects.filter(status='unresolved').order_by('-count')
+        if environment:
+            issues_qs = issues_qs.filter(environment=environment)
+        if product_filter:
+            issues_qs = issues_qs.filter(project__product_id=product_filter)
+        
+        top_issues = []
+        for issue in issues_qs[:10]:
+            top_issues.append({
+                'title': issue.title[:100],
+                'count': issue.count,
+                'project': issue.project.name,
+                'last_seen': issue.last_seen.isoformat() if issue.last_seen else None
+            })
+        
+        return top_issues

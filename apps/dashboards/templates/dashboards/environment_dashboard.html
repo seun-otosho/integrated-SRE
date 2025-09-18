@@ -1,0 +1,190 @@
+{% extends "dashboards/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">{{ title }}</h1>
+        <div class="dashboard-filters">
+            <div class="filter-group">
+                <label class="filter-label">Environment</label>
+                <select name="environment" class="filter-select">
+                    {% for env in environments %}
+                        <option value="{{ env }}" {% if selected_environment == env %}selected{% endif %}>
+                            {{ env|title }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Product</label>
+                <select name="product" class="filter-select">
+                    <option value="">All Products</option>
+                    {% for product in products %}
+                        <option value="{{ product.id }}" {% if selected_product == product.id|stringformat:"s" %}selected{% endif %}>
+                            {{ product.hierarchy_path }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Environment Overview -->
+    <div class="chart-container">
+        <h3 class="chart-title">{{ dashboard_data.environment_overview.environment }} Environment Overview</h3>
+        <div class="dashboard-grid">
+            <div class="metric-card {% if dashboard_data.environment_overview.health_score >= 80 %}green{% elif dashboard_data.environment_overview.health_score >= 60 %}orange{% else %}red{% endif %}">
+                <div class="metric-card-header">
+                    <span class="metric-title">Environment Health</span>
+                    <span class="metric-icon">🌍</span>
+                </div>
+                <div class="metric-value">{{ dashboard_data.environment_overview.health_score|floatformat:1 }}%</div>
+                <div class="metric-subtitle">
+                    {% if dashboard_data.environment_overview.health_score >= 80 %}
+                        Healthy
+                    {% elif dashboard_data.environment_overview.health_score >= 60 %}
+                        Needs Attention
+                    {% else %}
+                        Critical
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="metric-card blue">
+                <div class="metric-card-header">
+                    <span class="metric-title">Active Issues</span>
+                    <span class="metric-icon">🔥</span>
+                </div>
+                <div class="metric-value">{{ dashboard_data.environment_overview.unresolved_issues }}</div>
+                <div class="metric-subtitle">{{ dashboard_data.environment_overview.total_issues }} total issues</div>
+            </div>
+
+            <div class="metric-card purple">
+                <div class="metric-card-header">
+                    <span class="metric-title">Projects</span>
+                    <span class="metric-icon">📦</span>
+                </div>
+                <div class="metric-value">{{ dashboard_data.environment_overview.projects_count }}</div>
+                <div class="metric-subtitle">Monitored projects</div>
+            </div>
+
+            <div class="metric-card orange">
+                <div class="metric-card-header">
+                    <span class="metric-title">Quality Score</span>
+                    <span class="metric-icon">✅</span>
+                </div>
+                <div class="metric-value">{{ dashboard_data.quality_metrics.average_quality_score }}%</div>
+                <div class="metric-subtitle">{{ dashboard_data.quality_metrics.quality_trend|title }} trend</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deployment Health -->
+    <div class="chart-container">
+        <h3 class="chart-title">Deployment Health</h3>
+        <div class="dashboard-grid">
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 2rem; color: #10b981; margin-bottom: 10px;">🚀</div>
+                <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 5px;">{{ dashboard_data.deployment_health.recent_deployments }}</div>
+                <div style="color: #6b7280;">Recent Deployments</div>
+            </div>
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 2rem; color: #3b82f6; margin-bottom: 10px;">✅</div>
+                <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 5px;">{{ dashboard_data.deployment_health.deployment_success_rate }}%</div>
+                <div style="color: #6b7280;">Success Rate</div>
+            </div>
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 2rem; color: #8b5cf6; margin-bottom: 10px;">📊</div>
+                <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 5px;">{{ dashboard_data.deployment_health.successful_deployments }}</div>
+                <div style="color: #6b7280;">Successful Deployments</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Issues -->
+    {% if dashboard_data.top_issues %}
+    <div class="table-container">
+        <div class="table-header">
+            <h3 class="table-title">Top Issues in {{ selected_environment|title }} Environment</h3>
+        </div>
+        <table class="dashboard-table">
+            <thead>
+                <tr>
+                    <th>Issue</th>
+                    <th>Project</th>
+                    <th>Count</th>
+                    <th>Last Seen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for issue in dashboard_data.top_issues %}
+                    <tr>
+                        <td>
+                            <div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ issue.title }}">
+                                {{ issue.title }}
+                            </div>
+                        </td>
+                        <td>{{ issue.project }}</td>
+                        <td>{{ issue.count }}</td>
+                        <td>
+                            {% if issue.last_seen %}
+                                {{ issue.last_seen|date:"M d, H:i" }}
+                            {% else %}
+                                Unknown
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="chart-container">
+        <h3 class="chart-title">No Issues Found</h3>
+        <p>No active issues found in the {{ selected_environment|title }} environment.</p>
+        <div style="text-align: center; padding: 40px;">
+            <div style="font-size: 4rem; margin-bottom: 20px;">🎉</div>
+            <div style="font-size: 1.5rem; font-weight: 600; color: #10b981;">All Clear!</div>
+            <div style="color: #6b7280; margin-top: 10px;">Your {{ selected_environment|title }} environment is running smoothly.</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Environment Comparison -->
+    <div class="table-container">
+        <div class="table-header">
+            <h3 class="table-title">Environment Comparison</h3>
+        </div>
+        <table class="dashboard-table">
+            <thead>
+                <tr>
+                    <th>Environment</th>
+                    <th>Total Issues</th>
+                    <th>Active Issues</th>
+                    <th>Projects</th>
+                    <th>Health Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for env in environments %}
+                    <tr {% if env == selected_environment %}style="background: #f0f9ff;"{% endif %}>
+                        <td>
+                            <a href="{% url 'dashboards:environment' %}?environment={{ env }}{% if selected_product %}&product={{ selected_product }}{% endif %}">
+                                {{ env|title }}
+                                {% if env == selected_environment %}<strong> (Current)</strong>{% endif %}
+                            </a>
+                        </td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>
+                            <span class="status-badge info">View Details</span>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

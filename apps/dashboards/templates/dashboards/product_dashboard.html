@@ -1,0 +1,175 @@
+{% extends "dashboards/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">{{ title }}</h1>
+        <div class="dashboard-filters">
+            <div class="filter-group">
+                <label class="filter-label">Product</label>
+                <select name="product" class="filter-select" onchange="window.location.href='/dashboards/product/' + this.value + '/'">
+                    <option value="">Select Product</option>
+                    {% for prod in products %}
+                        <option value="{{ prod.id }}" {% if product and product.id == prod.id %}selected{% endif %}>
+                            {{ prod.hierarchy_path }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if environments %}
+            <div class="filter-group">
+                <label class="filter-label">Environment</label>
+                <select name="environment" class="filter-select">
+                    <option value="">All Environments</option>
+                    {% for env in environments %}
+                        <option value="{{ env }}" {% if selected_environment == env %}selected{% endif %}>
+                            {{ env|title }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if product %}
+        <!-- Product Overview -->
+        <div class="chart-container">
+            <h3 class="chart-title">{{ dashboard_data.product_overview.name }}</h3>
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
+                <div>
+                    <p><strong>Description:</strong> {{ dashboard_data.product_overview.description|default:"No description available" }}</p>
+                    <p><strong>Owner Team:</strong> {{ dashboard_data.product_overview.owner_team|default:"Not assigned" }}</p>
+                    <p><strong>Priority:</strong> {{ dashboard_data.product_overview.priority|default:"Not set" }}</p>
+                    <p><strong>Status:</strong> 
+                        {% if dashboard_data.product_overview.is_active %}
+                            <span class="status-badge success">Active</span>
+                        {% else %}
+                            <span class="status-badge error">Inactive</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div>
+                    <h4>Cross-System Integration</h4>
+                    <p><strong>JIRA Link Coverage:</strong> {{ dashboard_data.cross_system_links.link_coverage|floatformat:1 }}%</p>
+                    <p><strong>Linked Issues:</strong> {{ dashboard_data.cross_system_links.linked_to_jira }} of {{ dashboard_data.cross_system_links.total_sentry_issues }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="dashboard-grid">
+            <!-- Sentry Metrics -->
+            <div class="metric-card {% if dashboard_data.sentry_metrics.unresolved_issues > 10 %}red{% elif dashboard_data.sentry_metrics.unresolved_issues > 5 %}orange{% else %}green{% endif %}">
+                <div class="metric-card-header">
+                    <span class="metric-title">Sentry Issues</span>
+                    <span class="metric-icon">🔥</span>
+                </div>
+                <div class="metric-value">{{ dashboard_data.sentry_metrics.unresolved_issues }}</div>
+                <div class="metric-subtitle">{{ dashboard_data.sentry_metrics.total_issues }} total ({{ dashboard_data.sentry_metrics.resolution_rate|floatformat:1 }}% resolved)</div>
+            </div>
+
+            <!-- JIRA Metrics -->
+            <div class="metric-card blue">
+                <div class="metric-card-header">
+                    <span class="metric-title">JIRA Tickets</span>
+                    <span class="metric-icon">🎫</span>
+                </div>
+                <div class="metric-value">{{ dashboard_data.jira_metrics.open_tickets }}</div>
+                <div class="metric-subtitle">{{ dashboard_data.jira_metrics.total_tickets }} total ({{ dashboard_data.jira_metrics.closure_rate|floatformat:1 }}% closed)</div>
+            </div>
+
+            <!-- SonarCloud Metrics -->
+            <div class="metric-card {% if dashboard_data.sonarcloud_metrics.gate_pass_rate >= 80 %}green{% elif dashboard_data.sonarcloud_metrics.gate_pass_rate >= 60 %}orange{% else %}red{% endif %}">
+                <div class="metric-card-header">
+                    <span class="metric-title">Quality Gates</span>
+                    <span class="metric-icon">✅</span>
+                </div>
+                <div class="metric-value">{{ dashboard_data.sonarcloud_metrics.passing_gates }}</div>
+                <div class="metric-subtitle">{{ dashboard_data.sonarcloud_metrics.projects_with_gates }} projects ({{ dashboard_data.sonarcloud_metrics.gate_pass_rate|floatformat:1 }}% passing)</div>
+            </div>
+
+            <!-- Link Coverage -->
+            <div class="metric-card purple">
+                <div class="metric-card-header">
+                    <span class="metric-title">Integration Coverage</span>
+                    <span class="metric-icon">🔗</span>
+                </div>
+                <div class="metric-value">{{ dashboard_data.cross_system_links.link_coverage|floatformat:1 }}%</div>
+                <div class="metric-subtitle">{{ dashboard_data.cross_system_links.linked_to_jira }} issues linked to JIRA</div>
+            </div>
+        </div>
+
+        <!-- Environment Breakdown -->
+        {% if dashboard_data.environment_breakdown %}
+        <div class="table-container">
+            <div class="table-header">
+                <h3 class="table-title">Environment Breakdown</h3>
+            </div>
+            <table class="dashboard-table">
+                <thead>
+                    <tr>
+                        <th>Environment</th>
+                        <th>Total Issues</th>
+                        <th>Unresolved</th>
+                        <th>Health Score</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for env in dashboard_data.environment_breakdown %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'dashboards:environment' %}?environment={{ env.environment }}&product={{ product.id }}">
+                                    {{ env.environment|title }}
+                                </a>
+                            </td>
+                            <td>{{ env.total_issues }}</td>
+                            <td>{{ env.unresolved_issues }}</td>
+                            <td>{{ env.health_score|floatformat:1 }}%</td>
+                            <td>
+                                {% if env.health_score >= 80 %}
+                                    <span class="status-badge success">Healthy</span>
+                                {% elif env.health_score >= 60 %}
+                                    <span class="status-badge warning">Warning</span>
+                                {% else %}
+                                    <span class="status-badge error">Critical</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+    {% else %}
+        <!-- No Product Selected -->
+        <div class="chart-container">
+            <h3 class="chart-title">Select a Product</h3>
+            <p>Please select a product from the dropdown above to view detailed health metrics and analytics.</p>
+            
+            <div class="dashboard-grid" style="margin-top: 20px;">
+                {% for prod in products %}
+                    <div class="metric-card blue">
+                        <div class="metric-card-header">
+                            <span class="metric-title">{{ prod.name }}</span>
+                            <span class="metric-icon">📦</span>
+                        </div>
+                        <div style="margin: 15px 0;">
+                            <div class="metric-subtitle">{{ prod.hierarchy_path }}</div>
+                            <div style="margin-top: 10px;">
+                                <small style="color: #6b7280;">{{ prod.description|default:"No description"|truncatechars:60 }}</small>
+                            </div>
+                        </div>
+                        <a href="{% url 'dashboards:product_detail' prod.id %}" class="button" style="background: #3b82f6; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; display: inline-block;">
+                            View Details
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
