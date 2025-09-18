@@ -6,3 +6,5 @@ staticfiles
 media
 .idea
 .vscode
+logs
+
