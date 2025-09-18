@@ -1,0 +1,310 @@
+{% extends "dashboards/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">{{ title }}</h1>
+        <div class="dashboard-filters">
+            <div class="filter-group">
+                <label class="filter-label">Product</label>
+                <select name="product" class="filter-select">
+                    <option value="">All Products</option>
+                    {% for product in products %}
+                        <option value="{{ product.id }}" {% if selected_product == product.id|stringformat:"s" %}selected{% endif %}>
+                            {{ product.hierarchy_path }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Environment</label>
+                <select name="environment" class="filter-select">
+                    <option value="">All Environments</option>
+                    {% for env in environments %}
+                        <option value="{{ env }}" {% if selected_environment == env %}selected{% endif %}>
+                            {{ env|title }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="dashboard-grid">
+        {% for card in dashboard_data.summary_cards %}
+            <div class="metric-card {{ card.color }}">
+                <div class="metric-card-header">
+                    <span class="metric-title">{{ card.title }}</span>
+                    <span class="metric-icon">
+                        {% if card.icon == 'products' %}📦
+                        {% elif card.icon == 'issues' %}🔥
+                        {% elif card.icon == 'links' %}🔗
+                        {% elif card.icon == 'quality' %}✅
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="metric-value">{{ card.value }}</div>
+                {% if card.subtitle %}
+                    <div class="metric-subtitle">{{ card.subtitle }}</div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Health Trends Chart -->
+    <div class="chart-container">
+        <h3 class="chart-title">Issue Trends (Last 30 Days)</h3>
+        <canvas id="healthTrendsChart" width="400" height="150"></canvas>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <!-- Critical Issues Table -->
+        <div class="table-container">
+            <div class="table-header">
+                <h3 class="table-title">Critical Issues</h3>
+            </div>
+            <table class="dashboard-table">
+                <thead>
+                    <tr>
+                        <th>Issue</th>
+                        <th>Environment</th>
+                        <th>Count</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for issue in dashboard_data.critical_issues %}
+                        <tr>
+                            <td>
+                                <div style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    <a href="{{ issue.permalink }}" target="_blank" title="{{ issue.title }}">
+                                        {{ issue.title|truncatechars:50 }}
+                                    </a>
+                                </div>
+                                <small style="color: #6b7280;">{{ issue.project }}</small>
+                            </td>
+                            <td>
+                                <span class="status-badge info">{{ issue.environment }}</span>
+                            </td>
+                            <td>{{ issue.count }}</td>
+                            <td>
+                                {% if issue.has_jira_link %}
+                                    <span class="status-badge success">Linked</span>
+                                {% else %}
+                                    <span class="status-badge warning">No Link</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #6b7280; padding: 20px;">
+                                No critical issues found
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Environment Status -->
+        <div class="table-container">
+            <div class="table-header">
+                <h3 class="table-title">Environment Status</h3>
+            </div>
+            <table class="dashboard-table">
+                <thead>
+                    <tr>
+                        <th>Environment</th>
+                        <th>Active Issues</th>
+                        <th>Projects</th>
+                        <th>Health</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for env in dashboard_data.environment_status %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'dashboards:environment' %}?environment={{ env.name }}">
+                                    {{ env.name|title }}
+                                </a>
+                            </td>
+                            <td>{{ env.active_issues }}</td>
+                            <td>{{ env.projects_count }}</td>
+                            <td>
+                                {% if env.health_score >= 80 %}
+                                    <span class="status-badge success">Healthy</span>
+                                {% elif env.health_score >= 60 %}
+                                    <span class="status-badge warning">Warning</span>
+                                {% else %}
+                                    <span class="status-badge error">Critical</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #6b7280; padding: 20px;">
+                                No environment data available
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Product Health Overview -->
+    <div class="table-container" style="margin-top: 20px;">
+        <div class="table-header">
+            <h3 class="table-title">Product Health Overview</h3>
+        </div>
+        <table class="dashboard-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Sentry Issues</th>
+                    <th>JIRA Tickets</th>
+                    <th>Quality Score</th>
+                    <th>Overall Health</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in dashboard_data.product_health %}
+                    <tr>
+                        <td>
+                            <strong>{{ product.name }}</strong>
+                            {% if product.hierarchy_path %}
+                                <br><small style="color: #6b7280;">{{ product.hierarchy_path }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ product.sentry_issues.total }}
+                            {% if product.sentry_issues.unresolved > 0 %}
+                                <small style="color: #ef4444;">({{ product.sentry_issues.unresolved }} unresolved)</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ product.jira_tickets.total }}</td>
+                        <td>
+                            {% if product.quality_score %}
+                                {{ product.quality_score }}%
+                            {% else %}
+                                <span style="color: #6b7280;">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.health_grade == 'A' or product.health_grade == 'A+' %}
+                                <span class="status-badge success">{{ product.health_grade }}</span>
+                            {% elif product.health_grade == 'B' or product.health_grade == 'B+' %}
+                                <span class="status-badge info">{{ product.health_grade }}</span>
+                            {% elif product.health_grade == 'C' or product.health_grade == 'C+' %}
+                                <span class="status-badge warning">{{ product.health_grade }}</span>
+                            {% else %}
+                                <span class="status-badge error">{{ product.health_grade }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'dashboards:product_detail' product.id %}" class="button">View Details</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: #6b7280; padding: 20px;">
+                            No product data available
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Integration Statistics -->
+    <div class="dashboard-grid" style="margin-top: 30px;">
+        <div class="metric-card blue">
+            <div class="metric-card-header">
+                <span class="metric-title">Annotation Links</span>
+                <span class="metric-icon">📝</span>
+            </div>
+            <div class="metric-value">{{ dashboard_data.integration_stats.annotation_links }}</div>
+            <div class="metric-subtitle">From Sentry UI</div>
+        </div>
+        <div class="metric-card purple">
+            <div class="metric-card-header">
+                <span class="metric-title">Fuzzy Matches</span>
+                <span class="metric-icon">🎯</span>
+            </div>
+            <div class="metric-value">{{ dashboard_data.integration_stats.fuzzy_links }}</div>
+            <div class="metric-subtitle">Auto-discovered</div>
+        </div>
+        <div class="metric-card green">
+            <div class="metric-card-header">
+                <span class="metric-title">Quality Projects</span>
+                <span class="metric-icon">📊</span>
+            </div>
+            <div class="metric-value">{{ dashboard_data.integration_stats.sonarcloud_projects }}</div>
+            <div class="metric-subtitle">With quality data</div>
+        </div>
+        <div class="metric-card orange">
+            <div class="metric-card-header">
+                <span class="metric-title">Coverage Rate</span>
+                <span class="metric-icon">🔗</span>
+            </div>
+            <div class="metric-value">{{ dashboard_data.integration_stats.coverage_rate }}%</div>
+            <div class="metric-subtitle">Issues linked to JIRA</div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Health Trends Chart
+    const ctx = document.getElementById('healthTrendsChart').getContext('2d');
+    const trendsData = {{ dashboard_data.health_trends|safe }};
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: trendsData.labels.map(date => {
+                const d = new Date(date);
+                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }),
+            datasets: trendsData.datasets.map(dataset => ({
+                label: dataset.label,
+                data: dataset.data,
+                borderColor: dataset.color,
+                backgroundColor: dataset.color + '20',
+                borderWidth: 2,
+                fill: false,
+                tension: 0.1
+            }))
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return formatNumber(value);
+                        }
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

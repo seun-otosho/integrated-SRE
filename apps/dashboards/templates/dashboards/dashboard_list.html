@@ -1,0 +1,131 @@
+{% extends "dashboards/base.html" %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">Monitoring Dashboards</h1>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- Executive Dashboard -->
+        <div class="metric-card blue">
+            <div class="metric-card-header">
+                <span class="metric-title">Executive Overview</span>
+                <span class="metric-icon">📊</span>
+            </div>
+            <div style="margin: 15px 0;">
+                <p style="color: #6b7280; margin-bottom: 15px;">
+                    High-level view of system health across all products and environments.
+                </p>
+                <ul style="color: #6b7280; font-size: 0.875rem; margin: 10px 0; padding-left: 20px;">
+                    <li>System-wide metrics and KPIs</li>
+                    <li>Critical issues requiring attention</li>
+                    <li>Cross-system integration statistics</li>
+                    <li>Product health overview</li>
+                </ul>
+            </div>
+            <a href="{% url 'dashboards:executive' %}" class="button" style="background: #3b82f6; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; display: inline-block;">
+                View Executive Dashboard
+            </a>
+        </div>
+
+        <!-- Product Dashboard -->
+        <div class="metric-card green">
+            <div class="metric-card-header">
+                <span class="metric-title">Product Health</span>
+                <span class="metric-icon">📦</span>
+            </div>
+            <div style="margin: 15px 0;">
+                <p style="color: #6b7280; margin-bottom: 15px;">
+                    Detailed view of individual product health and performance.
+                </p>
+                <ul style="color: #6b7280; font-size: 0.875rem; margin: 10px 0; padding-left: 20px;">
+                    <li>Sentry issues and error rates</li>
+                    <li>JIRA ticket management</li>
+                    <li>SonarCloud quality metrics</li>
+                    <li>Cross-system link analysis</li>
+                </ul>
+            </div>
+            <a href="{% url 'dashboards:product' %}" class="button" style="background: #10b981; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; display: inline-block;">
+                View Product Dashboard
+            </a>
+        </div>
+
+        <!-- Environment Dashboard -->
+        <div class="metric-card orange">
+            <div class="metric-card-header">
+                <span class="metric-title">Environment Status</span>
+                <span class="metric-icon">🌍</span>
+            </div>
+            <div style="margin: 15px 0;">
+                <p style="color: #6b7280; margin-bottom: 15px;">
+                    Environment-specific monitoring and deployment health.
+                </p>
+                <ul style="color: #6b7280; font-size: 0.875rem; margin: 10px 0; padding-left: 20px;">
+                    <li>Production vs staging health</li>
+                    <li>Environment-specific issues</li>
+                    <li>Deployment impact analysis</li>
+                    <li>Release quality tracking</li>
+                </ul>
+            </div>
+            <a href="{% url 'dashboards:environment' %}" class="button" style="background: #f59e0b; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; display: inline-block;">
+                View Environment Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Integration Summary -->
+    <div class="chart-container" style="margin-top: 30px;">
+        <h3 class="chart-title">Integration Summary</h3>
+        <div class="dashboard-grid">
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 2rem; color: #3b82f6; margin-bottom: 10px;">🔗</div>
+                <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 5px;">Sentry ↔ JIRA</div>
+                <div style="color: #6b7280;">118 automatic links created</div>
+            </div>
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 2rem; color: #10b981; margin-bottom: 10px;">📊</div>
+                <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 5px;">SonarCloud Quality</div>
+                <div style="color: #6b7280;">Code quality metrics tracked</div>
+            </div>
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 2rem; color: #8b5cf6; margin-bottom: 10px;">🎯</div>
+                <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 5px;">Fuzzy Matching</div>
+                <div style="color: #6b7280;">24 hidden connections discovered</div>
+            </div>
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 2rem; color: #f59e0b; margin-bottom: 10px;">🌍</div>
+                <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 5px;">Environment Tracking</div>
+                <div style="color: #6b7280;">Production, staging, dev monitoring</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="table-container" style="margin-top: 30px;">
+        <div class="table-header">
+            <h3 class="table-title">Quick Actions</h3>
+        </div>
+        <div style="padding: 20px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                <a href="{% url 'admin:sentry_sentryissue_changelist' %}" style="display: block; padding: 15px; border: 1px solid #e5e7eb; border-radius: 6px; text-decoration: none; color: inherit;">
+                    <div style="font-weight: 600; margin-bottom: 5px;">🔍 Browse Sentry Issues</div>
+                    <div style="color: #6b7280; font-size: 0.875rem;">View and manage all Sentry issues</div>
+                </a>
+                <a href="{% url 'admin:jira_jiraissue_changelist' %}" style="display: block; padding: 15px; border: 1px solid #e5e7eb; border-radius: 6px; text-decoration: none; color: inherit;">
+                    <div style="font-weight: 600; margin-bottom: 5px;">🎫 Browse JIRA Tickets</div>
+                    <div style="color: #6b7280; font-size: 0.875rem;">View and manage JIRA tickets</div>
+                </a>
+                <a href="{% url 'admin:sonarcloud_sonarcloudproject_changelist' %}" style="display: block; padding: 15px; border: 1px solid #e5e7eb; border-radius: 6px; text-decoration: none; color: inherit;">
+                    <div style="font-weight: 600; margin-bottom: 5px;">📊 SonarCloud Quality</div>
+                    <div style="color: #6b7280; font-size: 0.875rem;">View code quality metrics</div>
+                </a>
+                <a href="{% url 'admin:products_product_changelist' %}" style="display: block; padding: 15px; border: 1px solid #e5e7eb; border-radius: 6px; text-decoration: none; color: inherit;">
+                    <div style="font-weight: 600; margin-bottom: 5px;">📦 Manage Products</div>
+                    <div style="color: #6b7280; font-size: 0.875rem;">Configure product hierarchy</div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -17,6 +17,7 @@ urlpatterns = [
     path("products/", include("apps.products.urls")),
     path("jira/", include("apps.jira.urls")),
     path("sonarcloud/", include("apps.sonarcloud.urls")),
+    path("dashboards/", include("apps.dashboards.urls")),
 ]
 
 
