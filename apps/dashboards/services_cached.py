@@ -37,7 +37,7 @@ class CachedDashboardService:
         
         # Add cache metadata to response
         data = snapshot.data.copy()
-        data['_cache_info'] = {
+        data['cache_info'] = {
             'cached': True,
             'generated_at': snapshot.generated_at.isoformat(),
             'age_minutes': round(snapshot.age_minutes, 1),
@@ -68,7 +68,7 @@ class CachedDashboardService:
             return self.data_service.get_product_health_dashboard(product_id, environment_filter), True
         
         data = snapshot.data.copy()
-        data['_cache_info'] = {
+        data['cache_info'] = {
             'cached': True,
             'generated_at': snapshot.generated_at.isoformat(),
             'age_minutes': round(snapshot.age_minutes, 1),
@@ -97,7 +97,7 @@ class CachedDashboardService:
             return self.data_service.get_environment_dashboard(environment, product_filter), True
         
         data = snapshot.data.copy()
-        data['_cache_info'] = {
+        data['cache_info'] = {
             'cached': True,
             'generated_at': snapshot.generated_at.isoformat(),
             'age_minutes': round(snapshot.age_minutes, 1),

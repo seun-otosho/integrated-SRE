@@ -7,12 +7,12 @@
         <h1 class="dashboard-title">{{ title }}</h1>
         
         <!-- Cache Info Banner -->
-        {% if dashboard_data._cache_info %}
+        {% if dashboard_data.cache_info %}
         <div class="cache-info-banner">
             <span class="cache-badge">⚡ Instant Loading</span>
             <span class="cache-details">
-                Data cached {{ dashboard_data._cache_info.age_minutes }} min ago 
-                ({{ dashboard_data._cache_info.generation_time }} gen time)
+                Data cached {{ dashboard_data.cache_info.age_minutes }} min ago 
+                ({{ dashboard_data.cache_info.generation_time }} gen time)
             </span>
             <button type="button" class="refresh-btn" id="refresh-btn" onclick="refreshDashboard()">
                 <i class="fas fa-sync-alt" id="refresh-icon"></i> Refresh
