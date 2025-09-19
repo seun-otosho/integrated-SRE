@@ -285,19 +285,54 @@ class AzureDataService:
     def _map_resource_type(self, azure_type: str) -> str:
         """Map Azure resource type to our enum"""
         type_mapping = {
+            # Web and App Services
             'Microsoft.Web/sites': AzureResource.ResourceType.WEB_APP,
+            'Microsoft.Web/sites/slots': AzureResource.ResourceType.WEB_APP,  # Deployment slots
             'Microsoft.Web/sites/functions': AzureResource.ResourceType.FUNCTION_APP,
+            'Microsoft.Web/serverFarms': AzureResource.ResourceType.APP_SERVICE_PLAN,
+            'Microsoft.Web/certificates': AzureResource.ResourceType.SSL_CERTIFICATE,
+            
+            # Database Services
             'Microsoft.Sql/servers/databases': AzureResource.ResourceType.SQL_DATABASE,
+            'Microsoft.Sql/servers': AzureResource.ResourceType.SQL_SERVER,
             'Microsoft.DocumentDB/databaseAccounts': AzureResource.ResourceType.COSMOS_DB,
+            
+            # Storage
             'Microsoft.Storage/storageAccounts': AzureResource.ResourceType.STORAGE_ACCOUNT,
+            
+            # Security and Identity
             'Microsoft.KeyVault/vaults': AzureResource.ResourceType.KEY_VAULT,
+            'Microsoft.ManagedIdentity/userAssignedIdentities': AzureResource.ResourceType.MANAGED_IDENTITY,
+            
+            # Networking
             'Microsoft.Network/applicationGateways': AzureResource.ResourceType.APPLICATION_GATEWAY,
             'Microsoft.Network/loadBalancers': AzureResource.ResourceType.LOAD_BALANCER,
+            'Microsoft.Network/virtualNetworks': AzureResource.ResourceType.VIRTUAL_NETWORK,
+            'Microsoft.Network/publicIPAddresses': AzureResource.ResourceType.PUBLIC_IP,
+            'Microsoft.Network/networkSecurityGroups': AzureResource.ResourceType.NETWORK_SECURITY_GROUP,
+            
+            # Compute
             'Microsoft.Compute/virtualMachines': AzureResource.ResourceType.VIRTUAL_MACHINE,
+            
+            # Containers
             'Microsoft.ContainerInstance/containerGroups': AzureResource.ResourceType.CONTAINER_INSTANCE,
+            'Microsoft.ContainerRegistry/registries': AzureResource.ResourceType.CONTAINER_REGISTRY,
+            'Microsoft.ContainerRegistry/registries/webhooks': AzureResource.ResourceType.WEBHOOK,
+            
+            # Monitoring and Management
+            'microsoft.insights/components': AzureResource.ResourceType.APPLICATION_INSIGHTS,
+            'microsoft.insights/autoscalesettings': AzureResource.ResourceType.AUTOSCALE_SETTING,
+            'microsoft.alertsmanagement/smartDetectorAlertRules': AzureResource.ResourceType.ALERT_RULE,
+            'Microsoft.Portal/dashboards': AzureResource.ResourceType.PORTAL_DASHBOARD,
         }
         
-        return type_mapping.get(azure_type, AzureResource.ResourceType.OTHER)
+        mapped_type = type_mapping.get(azure_type, AzureResource.ResourceType.OTHER)
+        
+        # Log unmapped types for future enhancement
+        if mapped_type == AzureResource.ResourceType.OTHER and azure_type not in type_mapping:
+            logger.info(f"Unmapped Azure resource type: {azure_type}")
+        
+        return mapped_type
     
     def _get_metrics_for_resource_type(self, resource_type: str) -> List[str]:
         """Get relevant metrics for a resource type"""

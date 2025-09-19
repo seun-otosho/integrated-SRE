@@ -46,8 +46,7 @@ class AzureClient:
         # Set default headers
         self.session.headers.update({
             'User-Agent': 'SRE-Dashboard/1.0',
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
+            'Accept': 'application/json'
         })
     
     def authenticate(self) -> str:
@@ -71,8 +70,22 @@ class AzureClient:
         }
         
         try:
-            response = self.session.post(auth_url, data=data)
-            response.raise_for_status()
+            # OAuth2 requires application/x-www-form-urlencoded
+            headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+            response = self.session.post(auth_url, data=data, headers=headers)
+            
+            # Enhanced error reporting
+            if response.status_code != 200:
+                error_details = response.text
+                try:
+                    error_json = response.json()
+                    error_description = error_json.get('error_description', 'Unknown error')
+                    error_code = error_json.get('error', 'unknown_error')
+                    logger.error(f"Azure auth failed - Code: {error_code}, Description: {error_description}")
+                    raise AzureAuthenticationError(f"Azure authentication failed: {error_code} - {error_description}")
+                except:
+                    logger.error(f"Azure auth failed with status {response.status_code}: {error_details}")
+                    raise AzureAuthenticationError(f"Azure authentication failed (HTTP {response.status_code}): {error_details}")
             
             token_data = response.json()
             self.access_token = token_data['access_token']
@@ -87,9 +100,11 @@ class AzureClient:
             logger.info("Azure authentication successful")
             return self.access_token
             
+        except AzureAuthenticationError:
+            raise
         except requests.exceptions.RequestException as e:
-            logger.error(f"Azure authentication failed: {e}")
-            raise AzureAuthenticationError(f"Failed to authenticate with Azure: {e}")
+            logger.error(f"Azure authentication network error: {e}")
+            raise AzureAuthenticationError(f"Network error during Azure authentication: {e}")
     
     def test_connection(self) -> Dict[str, Any]:
         """
@@ -178,6 +193,19 @@ class AzureClient:
             resources = data.get('value', [])
             
             logger.info(f"Retrieved {len(resources)} resources from Azure")
+            
+            # Add resource group name to each resource if not present
+            for resource in resources:
+                if 'resourceGroup' not in resource and 'id' in resource:
+                    # Extract resource group from resource ID
+                    try:
+                        resource_id = resource['id']
+                        rg_name = resource_id.split('/resourceGroups/')[1].split('/')[0]
+                        resource['resourceGroup'] = rg_name
+                    except (IndexError, KeyError):
+                        logger.warning(f"Could not extract resource group from {resource.get('id', 'unknown')}")
+                        resource['resourceGroup'] = resource_group or 'unknown'
+            
             return resources
             
         except requests.exceptions.RequestException as e:

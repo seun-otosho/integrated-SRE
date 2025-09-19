@@ -79,16 +79,47 @@ class AzureResource(models.Model):
     """Azure resources being monitored"""
     
     class ResourceType(models.TextChoices):
+        # Web and App Services
         WEB_APP = 'webapp', 'Web App'
         FUNCTION_APP = 'function', 'Function App'
+        APP_SERVICE_PLAN = 'app_service_plan', 'App Service Plan'
+        
+        # Database Services
         SQL_DATABASE = 'sql_db', 'SQL Database'
+        SQL_SERVER = 'sql_server', 'SQL Server'
         COSMOS_DB = 'cosmos_db', 'Cosmos DB'
+        
+        # Storage
         STORAGE_ACCOUNT = 'storage', 'Storage Account'
+        
+        # Security and Identity
         KEY_VAULT = 'keyvault', 'Key Vault'
+        MANAGED_IDENTITY = 'managed_identity', 'Managed Identity'
+        
+        # Networking
+        VIRTUAL_NETWORK = 'vnet', 'Virtual Network'
         APPLICATION_GATEWAY = 'app_gateway', 'Application Gateway'
         LOAD_BALANCER = 'load_balancer', 'Load Balancer'
+        PUBLIC_IP = 'public_ip', 'Public IP Address'
+        NETWORK_SECURITY_GROUP = 'nsg', 'Network Security Group'
+        
+        # Compute
         VIRTUAL_MACHINE = 'vm', 'Virtual Machine'
+        
+        # Containers
         CONTAINER_INSTANCE = 'container', 'Container Instance'
+        CONTAINER_REGISTRY = 'container_registry', 'Container Registry'
+        
+        # Monitoring and Management
+        APPLICATION_INSIGHTS = 'app_insights', 'Application Insights'
+        AUTOSCALE_SETTING = 'autoscale', 'Autoscale Setting'
+        ALERT_RULE = 'alert_rule', 'Alert Rule'
+        PORTAL_DASHBOARD = 'portal_dashboard', 'Portal Dashboard'
+        
+        # Certificates and Misc
+        SSL_CERTIFICATE = 'ssl_cert', 'SSL Certificate'
+        WEBHOOK = 'webhook', 'Webhook'
+        
         OTHER = 'other', 'Other'
     
     configuration = models.ForeignKey(AzureConfiguration, on_delete=models.CASCADE, related_name='resources')
