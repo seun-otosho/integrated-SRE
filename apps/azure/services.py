@@ -337,21 +337,75 @@ class AzureDataService:
     def _get_metrics_for_resource_type(self, resource_type: str) -> List[str]:
         """Get relevant metrics for a resource type"""
         metric_mapping = {
+            # Web and App Services
             AzureResource.ResourceType.WEB_APP: [
                 'CpuPercentage', 'MemoryPercentage', 'HttpResponseTime', 
-                'Http5xx', 'Http4xx', 'Requests'
+                'Http5xx', 'Http4xx', 'Requests', 'ResponseTime'
             ],
+            AzureResource.ResourceType.FUNCTION_APP: [
+                'FunctionExecutionCount', 'FunctionExecutionUnits', 
+                'Http5xx', 'MemoryWorkingSet'
+            ],
+            AzureResource.ResourceType.APP_SERVICE_PLAN: [
+                'CpuPercentage', 'MemoryPercentage', 'DiskQueueLength',
+                'HttpQueueLength', 'BytesReceived', 'BytesSent'
+            ],
+            
+            # Database Services
             AzureResource.ResourceType.SQL_DATABASE: [
                 'cpu_percent', 'memory_percent', 'dtu_consumption_percent',
                 'storage_percent', 'connection_successful', 'connection_failed'
+            ],
+            AzureResource.ResourceType.SQL_SERVER: [
+                'dtu_consumption_percent', 'cpu_percent', 'connection_successful'
             ],
             AzureResource.ResourceType.COSMOS_DB: [
                 'TotalRequestUnits', 'ProvisionedThroughput', 'AvailableStorage',
                 'ServerSideLatency', 'UserErrors', 'ThrottledRequests'
             ],
+            
+            # Storage
             AzureResource.ResourceType.STORAGE_ACCOUNT: [
                 'UsedCapacity', 'Transactions', 'Ingress', 'Egress', 'SuccessE2ELatency'
-            ]
+            ],
+            
+            # Security and Identity (Key Vault)
+            AzureResource.ResourceType.KEY_VAULT: [
+                'ServiceApiHit', 'ServiceApiLatency', 'ServiceApiResult'
+            ],
+            
+            # Networking
+            AzureResource.ResourceType.VIRTUAL_NETWORK: [
+                'PacketsInDDoS', 'PacketsDroppedDDoS', 'PacketsForwardedDDoS'
+            ],
+            AzureResource.ResourceType.APPLICATION_GATEWAY: [
+                'Throughput', 'ResponseStatus', 'CurrentConnections', 'HealthyHostCount'
+            ],
+            AzureResource.ResourceType.LOAD_BALANCER: [
+                'VipAvailability', 'DipAvailability', 'ByteCount', 'PacketCount'
+            ],
+            
+            # Compute
+            AzureResource.ResourceType.VIRTUAL_MACHINE: [
+                'Percentage CPU', 'Network In', 'Network Out', 'Disk Read Bytes', 'Disk Write Bytes'
+            ],
+            
+            # Containers
+            AzureResource.ResourceType.CONTAINER_REGISTRY: [
+                'RunDuration', 'SuccessfulPullCount', 'TotalPullCount', 'StorageUsed'
+            ],
+            AzureResource.ResourceType.CONTAINER_INSTANCE: [
+                'CpuUsage', 'MemoryUsage', 'NetworkBytesReceivedPerSecond', 'NetworkBytesTransmittedPerSecond'
+            ],
+            
+            # Note: Some resource types don't have meaningful metrics:
+            # - SSL_CERTIFICATE: No runtime metrics
+            # - MANAGED_IDENTITY: No performance metrics
+            # - APPLICATION_INSIGHTS: These ARE the metrics service
+            # - ALERT_RULE: No performance metrics
+            # - PORTAL_DASHBOARD: No performance metrics
+            # - WEBHOOK: Event-based, no continuous metrics
+            # - AUTOSCALE_SETTING: Configuration, not monitored resource
         }
         
         return metric_mapping.get(resource_type, [])

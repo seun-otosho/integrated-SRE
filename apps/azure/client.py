@@ -224,10 +224,14 @@ class AzureClient:
         metric_names = ','.join(metrics)
         
         url = f"{self.AZURE_MANAGEMENT_URL}{resource_id}/providers/Microsoft.Insights/metrics"
+        # Format timestamps for Azure API (needs timezone)
+        start_time_str = start_time.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        end_time_str = end_time.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        
         params = {
             'api-version': '2018-01-01',
             'metricnames': metric_names,
-            'timespan': f"{start_time.isoformat()}/{end_time.isoformat()}",
+            'timespan': f"{start_time_str}/{end_time_str}",
             'interval': time_grain,
             'aggregation': 'Average,Maximum,Minimum'
         }
