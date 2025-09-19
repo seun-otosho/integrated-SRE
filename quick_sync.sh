@@ -27,13 +27,13 @@ source "$VENV_PATH/bin/activate"
 
 # Quick sync operations
 echo -e "${YELLOW}🔥 Syncing Sentry...${NC}"
-python manage.py sync_sentry --issues > /dev/null 2>&1
+python manage.py sync_sentry > /dev/null 2>&1
 
 echo -e "${YELLOW}🎫 Syncing JIRA...${NC}"
 python manage.py sync_jira > /dev/null 2>&1
 
 echo -e "${YELLOW}✅ Syncing SonarCloud...${NC}"
-python manage.py sync_sonarcloud --metrics > /dev/null 2>&1
+python manage.py sync_sonarcloud > /dev/null 2>&1
 
 echo -e "${YELLOW}📊 Refreshing dashboards...${NC}"
 python manage.py refresh_dashboards --force > /dev/null 2>&1

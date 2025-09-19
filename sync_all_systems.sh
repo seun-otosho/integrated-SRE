@@ -114,18 +114,16 @@ sync_jira() {
 sync_sonarcloud() {
     print_header "✅ SONARCLOUD SYNC"
     
-    run_command "Syncing SonarCloud organizations and projects" "python manage.py sync_sonarcloud --organizations"
-    run_command "Syncing SonarCloud metrics and quality gates" "python manage.py sync_sonarcloud --metrics"
+    run_command "Syncing SonarCloud organizations and projects" "python manage.py sync_sonarcloud --force"
 }
 
 # Function to sync Sentry data
 sync_sentry() {
     print_header "🔥 SENTRY SYNC"
     
-    run_command "Syncing Sentry organizations and projects" "python manage.py sync_sentry --organizations"
-    run_command "Syncing Sentry issues" "python manage.py sync_sentry --issues"
-    run_command "Auto-linking Sentry issues to JIRA" "python manage.py sentry_auto_link_jira"
-    run_command "Fuzzy matching Sentry issues with JIRA" "python manage.py sentry_fuzzy_match_jira"
+    run_command "Syncing Sentry organizations and projects" "python manage.py sync_sentry --force"
+    run_command "Auto-linking Sentry issues to JIRA" "python manage.py sync_sentry --link-jira"
+    run_command "Fuzzy matching Sentry issues with JIRA" "python manage.py sync_sentry --fuzzy-match"
 }
 
 # Function to refresh dashboard cache

@@ -34,7 +34,7 @@ ERRORS=0
 
 # Sentry sync
 echo "$(date): Starting Sentry sync..."
-if ! python manage.py sync_sentry --issues; then
+if ! python manage.py sync_sentry; then
     echo "ERROR: Sentry sync failed" >> "$ERROR_LOG"
     ((ERRORS++))
 fi
@@ -48,7 +48,7 @@ fi
 
 # SonarCloud sync
 echo "$(date): Starting SonarCloud sync..."
-if ! python manage.py sync_sonarcloud --metrics; then
+if ! python manage.py sync_sonarcloud; then
     echo "ERROR: SonarCloud sync failed" >> "$ERROR_LOG"
     ((ERRORS++))
 fi
