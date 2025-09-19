@@ -117,6 +117,13 @@ sync_sonarcloud() {
     run_command "Syncing SonarCloud organizations and projects" "python manage.py sync_sonarcloud --force"
 }
 
+# Function to sync Azure data
+sync_azure() {
+    print_header "☁️ AZURE SYNC"
+    
+    run_command "Syncing Azure infrastructure and metrics" "python manage.py sync_azure --force"
+}
+
 # Function to sync Sentry data
 sync_sentry() {
     print_header "🔥 SENTRY SYNC"
@@ -170,6 +177,7 @@ main() {
     local sync_sentry=true
     local sync_jira=true
     local sync_sonarcloud=true
+    local sync_azure=true
     local refresh_cache=true
     
     while [[ $# -gt 0 ]]; do
@@ -189,6 +197,11 @@ main() {
                 print_status $YELLOW "⏩ Skipping SonarCloud sync"
                 shift
                 ;;
+            --skip-azure)
+                sync_azure=false
+                print_status $YELLOW "⏩ Skipping Azure sync"
+                shift
+                ;;
             --skip-dashboards)
                 refresh_cache=false
                 print_status $YELLOW "⏩ Skipping dashboard refresh"
@@ -198,6 +211,7 @@ main() {
                 sync_sentry=false
                 sync_jira=false
                 sync_sonarcloud=false
+                sync_azure=false
                 print_status $YELLOW "🎯 Only refreshing dashboards"
                 shift
                 ;;
@@ -208,6 +222,7 @@ main() {
                 echo "  --skip-sentry      Skip Sentry sync"
                 echo "  --skip-jira        Skip JIRA sync"
                 echo "  --skip-sonarcloud  Skip SonarCloud sync"
+                echo "  --skip-azure       Skip Azure sync"
                 echo "  --skip-dashboards  Skip dashboard refresh"
                 echo "  --only-dashboards  Only refresh dashboards"
                 echo "  --help, -h         Show this help message"
@@ -238,6 +253,12 @@ main() {
     
     if [ "$sync_sonarcloud" = true ]; then
         if ! sync_sonarcloud; then
+            ((failed_operations++))
+        fi
+    fi
+    
+    if [ "$sync_azure" = true ]; then
+        if ! sync_azure; then
             ((failed_operations++))
         fi
     fi

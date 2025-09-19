@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "apps.jira",
     "apps.sonarcloud",
     "apps.dashboards",
+    "apps.azure",
 ]
 
 AUTH_USER_MODEL =   "users.User"
