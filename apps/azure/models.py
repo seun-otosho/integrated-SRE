@@ -43,7 +43,7 @@ class AzureConfiguration(models.Model):
     # Association with products
     product = models.ForeignKey(
         'products.Product',
-        on_delete=models.CASCADE,
+        models.CASCADE,
         null=True,
         blank=True,
         help_text="Associate with specific product"
@@ -122,7 +122,7 @@ class AzureResource(models.Model):
         
         OTHER = 'other', 'Other'
     
-    configuration = models.ForeignKey(AzureConfiguration, on_delete=models.CASCADE, related_name='resources')
+    configuration = models.ForeignKey(AzureConfiguration, models.CASCADE, related_name='resources')
     
     # Resource identification
     resource_id = models.CharField(max_length=500, unique=True, help_text="Full Azure Resource ID")
@@ -133,16 +133,16 @@ class AzureResource(models.Model):
     # Resource details
     resource_group = models.CharField(max_length=100)
     subscription_id = models.CharField(max_length=100)
-    tags = models.JSONField(default=dict, help_text="Resource tags")
+    tags = models.JSONField(default=dict, help_text="Resource tags", blank=True, null=True, )
     
     # Monitoring settings
     is_monitored = models.BooleanField(default=True)
-    custom_metrics = models.JSONField(default=list, help_text="Custom metrics to collect")
+    custom_metrics = models.JSONField(default=list, help_text="Custom metrics to collect", blank=True, null=True, )
     
     # Product association
     product = models.ForeignKey(
         'products.Product',
-        on_delete=models.SET_NULL,
+        models.SET_NULL,
         null=True,
         blank=True,
         help_text="Associated product"
@@ -182,7 +182,7 @@ class AzureMetric(models.Model):
         ERROR = 'error', 'Error'
         CRITICAL = 'critical', 'Critical'
     
-    resource = models.ForeignKey(AzureResource, on_delete=models.CASCADE, related_name='metrics')
+    resource = models.ForeignKey(AzureResource, models.CASCADE, related_name='metrics')
     
     # Metric identification
     metric_name = models.CharField(max_length=200)
@@ -234,7 +234,7 @@ class AzureLog(models.Model):
         ERROR = 'error', 'Error'
         CRITICAL = 'critical', 'Critical'
     
-    resource = models.ForeignKey(AzureResource, on_delete=models.CASCADE, related_name='logs')
+    resource = models.ForeignKey(AzureResource, models.CASCADE, related_name='logs')
     
     # Log identification
     log_type = models.CharField(max_length=100, help_text="Type of log (Application, System, etc.)")
@@ -298,8 +298,8 @@ class AzureAlert(models.Model):
         SEV3 = 'sev3', 'Sev3 - Informational'
         SEV4 = 'sev4', 'Sev4 - Verbose'
     
-    configuration = models.ForeignKey(AzureConfiguration, on_delete=models.CASCADE, related_name='alerts')
-    resource = models.ForeignKey(AzureResource, on_delete=models.CASCADE, null=True, blank=True, related_name='alerts')
+    configuration = models.ForeignKey(AzureConfiguration, models.CASCADE, related_name='alerts')
+    resource = models.ForeignKey(AzureResource, models.CASCADE, null=True, blank=True, related_name='alerts')
     
     # Alert identification
     alert_id = models.CharField(max_length=200, unique=True)
@@ -322,7 +322,7 @@ class AzureAlert(models.Model):
     # Integration
     linked_jira_issue = models.ForeignKey(
         'jira.JiraIssue',
-        on_delete=models.SET_NULL,
+        models.SET_NULL,
         null=True,
         blank=True,
         help_text="Linked JIRA issue"
@@ -367,7 +367,7 @@ class AzureSyncLog(models.Model):
         LOGS_ONLY = 'logs', 'Logs Only'
         ALERTS_ONLY = 'alerts', 'Alerts Only'
     
-    configuration = models.ForeignKey(AzureConfiguration, on_delete=models.CASCADE, related_name='sync_logs')
+    configuration = models.ForeignKey(AzureConfiguration, models.CASCADE, related_name='sync_logs')
     
     # Sync details
     sync_type = models.CharField(max_length=20, choices=SyncType.choices)
