@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Q
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
@@ -272,13 +273,48 @@ class SentryProjectAdmin(admin.ModelAdmin):
         return render(request, 'admin/sentry/bulk_assign_projects_to_product.html', context)
 
 
+class EnvCategoryFilter(admin.SimpleListFilter):
+    title = 'env'
+    parameter_name = 'env'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('prod', 'Prod'),
+            ('staging', 'Staging'),
+            ('dev', 'dev'),
+            ('other', 'other'),
+            ('none', '--'),
+        ]
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'prod':
+            return queryset.filter(environment__isnull=False).filter(environment__icontains='prod')
+        if value == 'staging':
+            return queryset.filter(environment__isnull=False).filter(
+                Q(environment__icontains='stg') | Q(environment__icontains='stag')
+            )
+        if value == 'dev':
+            return queryset.filter(environment__isnull=False).filter(environment__icontains='dev')
+        if value == 'other':
+            return queryset.filter(environment__isnull=False).exclude(
+                Q(environment__icontains='prod') |
+                Q(environment__icontains='dev') |
+                Q(environment__icontains='stg') |
+                Q(environment__icontains='stag')
+            )
+        if value == 'none':
+            return queryset.filter(Q(environment__isnull=True) | Q(environment__exact=''))
+        return queryset
+
+
 @admin.register(SentryIssue)
 class SentryIssueAdmin(admin.ModelAdmin):
     list_display = [
         'title_short', 'product', 'env', 'status', 'level', 'count', 'user_count', 'quality_context', 'last_seen',
         'first_seen', 'sentry_link'
     ]
-    list_filter = ['environment', 'release', 'platform', 'status', 'level', 'last_seen', 'first_seen', 'project', 'project__organization']
+    list_filter = [EnvCategoryFilter, 'release', 'platform', 'status', 'level', 'last_seen', 'first_seen', 'project', 'project__organization']
     search_fields = ['title', 'culprit', 'sentry_id', 'environment', 'release', 'logger']
     readonly_fields = [
         'sentry_id', 'permalink', 'first_seen', 'last_seen', 'created_at', 'updated_at', 'title', 'project', 'status',
