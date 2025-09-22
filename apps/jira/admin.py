@@ -108,6 +108,7 @@ class JiraOrganizationAdmin(admin.ModelAdmin):
     
     def test_connections(self, request, queryset):
         tested_count = 0
+        self.message_user(request, f'Testing Connections. ..')
         for org in queryset:
             try:
                 from .client import JiraAPIClient
@@ -126,7 +127,7 @@ class JiraOrganizationAdmin(admin.ModelAdmin):
                 
             except Exception as e:
                 self.message_user(request, f'Failed to test {org.name}: {str(e)}', level='ERROR')
-        
+
         self.message_user(request, f'Tested connection for {tested_count} organizations.')
     test_connections.short_description = 'Test connections'
     

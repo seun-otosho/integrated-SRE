@@ -7,7 +7,9 @@ from .models import Product
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['name', 'parent', 'owner_team', 'priority', 'is_active', 'sentry_projects_count', 'jira_projects_count', 'sonarcloud_projects_count', 'total_issues_count', 'unresolved_issues_count', 'hierarchy_path']
+    list_display = ['name',
+                    # 'parent', 'owner_team', 'priority',
+                    'is_active', 'sentry_projects_count', 'jira_projects_count', 'sonarcloud_projects_count', 'total_issues_count', 'unresolved_issues_count', 'hierarchy_path']
     list_filter = ['parent', 'priority', 'is_active', 'owner_team', 'created_at']
     search_fields = ['name', 'parent__name', 'description', 'owner_team']
     readonly_fields = ['created_at', 'updated_at']
