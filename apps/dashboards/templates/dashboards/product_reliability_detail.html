@@ -1,0 +1,617 @@
+{% extends "dashboards/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Product Detail Reliability Dashboard Styles */
+.product-detail-dashboard {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px 0;
+}
+
+.detail-header {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 30px;
+    margin-bottom: 30px;
+    color: white;
+}
+
+.product-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.product-subtitle {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    margin-bottom: 20px;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    margin-bottom: 20px;
+    transition: color 0.3s ease;
+}
+
+.back-link:hover {
+    color: white;
+    text-decoration: none;
+}
+
+.score-overview {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.score-gauge {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 30px;
+    text-align: center;
+    position: relative;
+}
+
+.gauge-container {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    margin: 0 auto 20px;
+}
+
+.gauge-circle {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: conic-gradient(
+        from 0deg,
+        #f44336 0% 20%,
+        #ff9800 20% 40%,
+        #ffeb3b 40% 60%,
+        #8bc34a 60% 80%,
+        #4caf50 80% 100%
+    );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gauge-inner {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.gauge-score {
+    font-size: 3rem;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+}
+
+.gauge-label {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.component-details {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 30px;
+}
+
+.components-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.component-card {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+}
+
+.component-icon {
+    font-size: 2rem;
+    margin-bottom: 15px;
+    display: block;
+}
+
+.component-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 10px;
+}
+
+.component-score {
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 15px;
+}
+
+.component-trend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+}
+
+.trend-improving { color: #4CAF50; }
+.trend-stable { color: #2196F3; }
+.trend-worsening { color: #FF5722; }
+
+.component-metrics {
+    text-align: left;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.metric-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+.insights-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.recommendations-card, .metrics-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 25px;
+}
+
+.card-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.recommendation-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-left: 4px solid #FF9800;
+}
+
+.recommendation-text {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.key-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.metric-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 5px;
+}
+
+.metric-label {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.historical-trends {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 30px;
+}
+
+.chart-container {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.actions-bar {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.action-btn {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+    color: white;
+    text-decoration: none;
+}
+
+.action-btn.secondary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.action-btn.danger {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+}
+
+@media (max-width: 768px) {
+    .score-overview {
+        grid-template-columns: 1fr;
+    }
+    
+    .components-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .insights-section {
+        grid-template-columns: 1fr;
+    }
+    
+    .key-metrics {
+        grid-template-columns: 1fr;
+    }
+    
+    .actions-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="product-detail-dashboard">
+    <div class="container">
+        <!-- Header -->
+        <div class="detail-header">
+            <a href="{% url 'dashboards:reliability_overview' %}" class="back-link">
+                <i class="fas fa-arrow-left"></i>
+                Back to Portfolio Overview
+            </a>
+            
+            <h1 class="product-title">{{ product.name }}</h1>
+            <p class="product-subtitle">
+                Detailed reliability analysis and recommendations
+            </p>
+        </div>
+
+        <!-- Score Overview -->
+        <div class="score-overview">
+            <div class="score-gauge">
+                <div class="gauge-container">
+                    <div class="gauge-circle">
+                        <div class="gauge-inner">
+                            <div class="gauge-score">{{ reliability_data.overall_score }}%</div>
+                            <div class="gauge-label">Reliability Score</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align: center; color: white;">
+                    <strong>Health Status:</strong>
+                    <span class="health-badge health-{{ reliability_data.health_status }}" style="margin-left: 10px;">
+                        {{ reliability_data.health_status|capfirst }}
+                    </span>
+                </div>
+            </div>
+            
+            <div class="component-details">
+                <h3 class="card-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Component Breakdown
+                </h3>
+                
+                <div class="components-grid">
+                    <div class="component-card">
+                        <span class="component-icon">🔥</span>
+                        <div class="component-title">Runtime Reliability</div>
+                        <div class="component-score">{{ components.runtime.score }}%</div>
+                        <div class="component-trend trend-{{ components.runtime.trend }}">
+                            {% if components.runtime.trend == 'improving' %}
+                                <i class="fas fa-arrow-up"></i> Improving
+                            {% elif components.runtime.trend == 'worsening' %}
+                                <i class="fas fa-arrow-down"></i> Worsening
+                            {% else %}
+                                <i class="fas fa-minus"></i> Stable
+                            {% endif %}
+                        </div>
+                        <div class="component-metrics">
+                            <div class="metric-row">
+                                <span>Total Issues:</span>
+                                <span>{{ components.runtime.metrics.total_issues }}</span>
+                            </div>
+                            <div class="metric-row">
+                                <span>Resolution Rate:</span>
+                                <span>{{ components.runtime.metrics.resolution_rate }}%</span>
+                            </div>
+                            <div class="metric-row">
+                                <span>Critical Issues:</span>
+                                <span>{{ components.runtime.metrics.critical_issues }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="component-card">
+                        <span class="component-icon">✅</span>
+                        <div class="component-title">Code Quality</div>
+                        <div class="component-score">{{ components.quality.score }}%</div>
+                        <div class="component-trend trend-{{ components.quality.trend }}">
+                            {% if components.quality.trend == 'improving' %}
+                                <i class="fas fa-arrow-up"></i> Improving
+                            {% elif components.quality.trend == 'worsening' %}
+                                <i class="fas fa-arrow-down"></i> Worsening
+                            {% else %}
+                                <i class="fas fa-minus"></i> Stable
+                            {% endif %}
+                        </div>
+                        <div class="component-metrics">
+                            <div class="metric-row">
+                                <span>Quality Gate:</span>
+                                <span>{{ components.quality.metrics.quality_gate }}</span>
+                            </div>
+                            <div class="metric-row">
+                                <span>Coverage:</span>
+                                <span>{{ components.quality.metrics.coverage }}%</span>
+                            </div>
+                            <div class="metric-row">
+                                <span>Bugs:</span>
+                                <span>{{ components.quality.metrics.bugs }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="component-card">
+                        <span class="component-icon">🎫</span>
+                        <div class="component-title">Operations</div>
+                        <div class="component-score">{{ components.operations.score }}%</div>
+                        <div class="component-trend trend-{{ components.operations.trend }}">
+                            {% if components.operations.trend == 'improving' %}
+                                <i class="fas fa-arrow-up"></i> Improving
+                            {% elif components.operations.trend == 'worsening' %}
+                                <i class="fas fa-arrow-down"></i> Worsening
+                            {% else %}
+                                <i class="fas fa-minus"></i> Stable
+                            {% endif %}
+                        </div>
+                        <div class="component-metrics">
+                            <div class="metric-row">
+                                <span>Resolution Rate:</span>
+                                <span>{{ components.operations.metrics.resolution_rate }}%</span>
+                            </div>
+                            <div class="metric-row">
+                                <span>SLA Compliance:</span>
+                                <span>{{ components.operations.metrics.sla_compliance }}%</span>
+                            </div>
+                            <div class="metric-row">
+                                <span>High Priority:</span>
+                                <span>{{ components.operations.metrics.high_priority }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="component-card">
+                        <span class="component-icon">☁️</span>
+                        <div class="component-title">System Health</div>
+                        <div class="component-score">{{ components.system_health.score }}%</div>
+                        <div class="component-trend trend-{{ components.system_health.trend }}">
+                            <i class="fas fa-minus"></i> Stable
+                        </div>
+                        <div class="component-metrics">
+                            <div class="metric-row">
+                                <span>Uptime:</span>
+                                <span>{{ components.system_health.metrics.uptime }}%</span>
+                            </div>
+                            <div class="metric-row">
+                                <span>Response Time:</span>
+                                <span>{{ components.system_health.metrics.response_time }}ms</span>
+                            </div>
+                            <div class="metric-row">
+                                <span>Error Rate:</span>
+                                <span>{{ components.system_health.metrics.error_rate }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Insights Section -->
+        <div class="insights-section">
+            <div class="recommendations-card">
+                <h3 class="card-title">
+                    <i class="fas fa-lightbulb"></i>
+                    Recommendations
+                </h3>
+                
+                {% if reliability_data.recommendations %}
+                    {% for recommendation in reliability_data.recommendations %}
+                    <div class="recommendation-item">
+                        <div class="recommendation-text">{{ recommendation }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="recommendation-item">
+                        <div class="recommendation-text">
+                            🎉 Great job! No critical issues found. Continue monitoring for optimal performance.
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="metrics-card">
+                <h3 class="card-title">
+                    <i class="fas fa-chart-line"></i>
+                    Key Metrics
+                </h3>
+                
+                <div class="key-metrics">
+                    <div class="metric-item">
+                        <div class="metric-value">{{ reliability_data.period_days }}</div>
+                        <div class="metric-label">Days Analyzed</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">{{ components.runtime.metrics.projects_monitored }}</div>
+                        <div class="metric-label">Sentry Projects</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">{{ components.quality.metrics.projects_analyzed }}</div>
+                        <div class="metric-label">SonarCloud Projects</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">{{ components.operations.metrics.projects_tracked }}</div>
+                        <div class="metric-label">JIRA Projects</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historical Trends -->
+        <div class="historical-trends">
+            <h3 class="card-title">
+                <i class="fas fa-history"></i>
+                Historical Trends
+            </h3>
+            
+            <div class="chart-container">
+                <i class="fas fa-chart-line" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;"></i>
+                <p>Historical trend charts coming soon...</p>
+                <p>Will show 90-day reliability score evolution</p>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions-bar">
+            <div>
+                <a href="{% url 'dashboards:reliability_overview' %}" class="action-btn secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Portfolio
+                </a>
+            </div>
+            
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <button class="action-btn" onclick="refreshProductData()">
+                    <i class="fas fa-sync-alt"></i>
+                    Refresh Data
+                </button>
+                
+                <button class="action-btn" onclick="exportReport()">
+                    <i class="fas fa-download"></i>
+                    Export Report
+                </button>
+                
+                {% if reliability_data.health_status == 'critical' %}
+                <button class="action-btn danger" onclick="createIncident()">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Create Incident
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function refreshProductData() {
+    // Implement product-specific data refresh
+    alert('Refreshing {{ product.name }} reliability data...');
+    
+    // Would make API call to refresh specific product data
+    fetch(`{% url 'dashboards:reliability_api' %}?product_id={{ product.id }}&days={{ filters.days }}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error refreshing data: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Network error while refreshing data');
+    });
+}
+
+function exportReport() {
+    // Implement report export functionality
+    alert('Export functionality coming soon...');
+}
+
+function createIncident() {
+    // Implement incident creation
+    if (confirm('Create a JIRA incident for {{ product.name }} reliability issues?')) {
+        alert('Incident creation functionality coming soon...');
+    }
+}
+</script>
+{% endblock %}
