@@ -51,6 +51,8 @@ class ProductReliabilityService:
         
         return {
             'product': product.name,
+            'product_id': product.id,
+            'product_obj': product,  # Include the full product object
             'overall_score': round(overall_score, 1),
             'period_days': days,
             'calculated_at': timezone.now(),

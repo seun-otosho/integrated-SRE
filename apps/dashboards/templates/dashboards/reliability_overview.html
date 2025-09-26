@@ -485,7 +485,7 @@
                     {% endif %}
                     
                     <div class="product-actions">
-                        <a href="{% url 'dashboards:product_reliability_detail' product.product.id %}" class="view-details-btn">
+                        <a href="{% url 'dashboards:product_reliability_detail' product.product_id %}" class="view-details-btn">
                             View Details
                         </a>
                         <div class="trend-indicator trend-{{ product.components.runtime.trend }}">
