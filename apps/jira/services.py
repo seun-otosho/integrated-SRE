@@ -178,8 +178,8 @@ class JiraSyncService:
                         logger.error(f"Failed to sync issue {issue_data.get('key')}: {str(e)}")
                 
                 # Check if we've reached the limit or end
-                total = issues_data.get('total', 0)
-                if start_at + max_results >= total or synced_count >= project.max_issues_to_sync:
+                is_last = issues_data.get('isLast', False)
+                if is_last:  # or synced_count >= project.max_issues_to_sync:
                     break
                 
                 start_at += max_results
